@@ -1,6 +1,6 @@
 # Phase 05 — Installer Windows
 
-**Ưu tiên:** Trung bình · **Trạng thái:** ⬜ Chưa làm · **Verify:** Windows (user chạy)
+**Ưu tiên:** Trung bình · **Trạng thái:** ✅ Code xong, **chưa chạy thử lần nào** — chờ user · **Verify:** Windows (user chạy)
 **Phụ thuộc:** [Phase 03](phase-03-os-abstraction.md)
 
 ## Vì sao Windows cần file cài riêng
@@ -129,7 +129,7 @@ Sửa:
 ## Todo
 
 - [x] Smoke test TUN trên Windows — `TUN_OK`, backend WSL2 (2026-09-14)
-- [ ] `vpn-manager-host.bat` có `@echo off`, dò được node, không in rác ra stdout
+- [x] `vpn-manager-host.bat` có `@echo off`, dò được node, không in rác ra stdout
 - [ ] `install.ps1` chạy không cần quyền Administrator
 - [ ] Registry ghi đúng cho các trình duyệt có mặt trên máy
 - [ ] ACL file `.ovpn` — kiểm chứng user khác **không** đọc được
@@ -160,3 +160,21 @@ Windows là nơi dễ sai nhất về quyền file. Trên Linux/macOS `chmod 060
 Windows file kế thừa ACL của thư mục cha, nghĩa là **mặc định có thể user khác đọc
 được**. Bước `icacls` không phải tuỳ chọn — thiếu nó là private key trong `.ovpn` bị
 lộ cho mọi tài khoản trên máy.
+
+## Kết quả (2026-09-14)
+
+Đã viết, **chưa chạy trên Windows lần nào**. Những gì kiểm được từ máy Linux:
+
+- `.bat` dòng đầu là `@echo off`; 0 lệnh `echo` ra stdout, 2 thông báo đều `>&2`.
+  Thiếu `@echo off` là cmd in lại từng lệnh ra stdout và Chrome ngắt kết nối ngay.
+- `.bat` dùng ASCII không dấu: cmd chạy codepage 437/1258, tiếng Việt có dấu sẽ thành
+  ký tự rác.
+- Không có cú pháp PowerShell 7 nào trong `.ps1` (đã grep `??`, ternary, `-Parallel`,
+  `-AsHashtable`, `Test-Json`).
+- `.gitattributes` ép `*.bat` và `*.ps1` dùng CRLF, `*.sh` dùng LF.
+- `icacls` khoá thư mục state về đúng user — trên Windows file kế thừa ACL thư mục cha
+  nên mặc định user khác đọc được private key trong `.ovpn`.
+- Registry chỉ ghi cho trình duyệt thật sự có mặt (máy user có Chrome + Edge).
+
+**Còn phải verify trên Windows thật:** spawn native host qua `.bat`, ghi registry,
+ACL có chặn được user khác không, và toàn bộ luồng import `.ovpn` → bật domain.

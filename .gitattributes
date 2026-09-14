@@ -1,0 +1,7 @@
+# .bat phải dùng CRLF, nếu không cmd.exe có thể hiểu sai nhãn goto
+*.bat text eol=crlf
+# .ps1 cũng nên CRLF cho nhất quán với công cụ Windows
+*.ps1 text eol=crlf
+
+# Script POSIX luôn LF, kể cả khi clone trên Windows
+*.sh text eol=lf

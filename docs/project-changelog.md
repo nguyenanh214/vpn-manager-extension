@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.6.0 — 2026-09-14
+
+### Installer cho ba hệ điều hành
+`install.sh` tách thành ba entry point rõ ràng. Hai script bash dùng chung
+`scripts/lib/install-common.sh`: Linux và macOS chỉ khác đường dẫn manifest và
+thông báo lỗi Docker, tách hẳn thành hai file sẽ lệch dần mỗi lần sửa.
+
+- **macOS**: `install.sh` cũ **vỡ ngay** vì `DOCKER_ENV=()` + `set -u` — macOS vẫn
+  ship bash 3.2 từ 2007. Đã bỏ mảng, kiểm chứng bằng cách chạy thật trong container
+  `bash:3.2`. Thư mục manifest chuyển sang `~/Library/Application Support/`.
+- **Kiểm TUN**: bỏ `[ -c /dev/net/tun ]` trên host (luôn sai trên macOS/Windows vì
+  Docker chạy trong VM), thay bằng chạy container thật với `ip tuntap add`.
+- **Ba tình huống Docker, ba hướng dẫn**: chưa cài / chỉ có CLI do
+  `brew install docker` / daemon chưa chạy. Gộp chung thành "Docker không dùng được"
+  là bắt user tự mò.
+- **Windows**: `install-windows.ps1` viết cho PowerShell 5.1 (bản ship sẵn), đăng ký
+  bằng registry HKCU nên không cần quyền Administrator, dùng `.bat` launcher vì Chrome
+  không thực thi được `.js`. `icacls` khoá thư mục state về đúng user.
+- `.gitattributes` ép `.bat`/`.ps1` dùng CRLF, `.sh` dùng LF.
+
+### Trạng thái kiểm chứng
+Linux chạy thật. macOS chạy trong container bash 3.2 với `uname` giả. Windows
+**chưa chạy lần nào** — chờ verify trên máy thật.
+
 ## 1.5.0 — 2026-09-14
 
 ### Trừu tượng hoá OS

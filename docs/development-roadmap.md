@@ -65,6 +65,16 @@ directive lạ mà dựng lại sẽ làm mất.
 Các hàm nhận tham số nên giả lập được cả ba OS trên một máy.
 `check-prereqs` kiểm tra TUN bằng cách chạy container thật thay vì xem file trên host.
 
+## Phase 11 — Installer ba hệ điều hành — 🟡 Code xong, chờ verify
+Ba entry point: `install-linux.sh`, `install-macos.sh`, `install-windows.ps1`.
+Hai script bash dùng chung `lib/install-common.sh` để không lệch nhau khi sửa.
+Windows dùng PowerShell 5.1 + registry HKCU + `.bat` launcher.
+
+| | Linux | macOS | Windows |
+|---|---|---|---|
+| Installer | ✅ chạy thật | 🟡 chạy trên bash 3.2 giả lập | ⬜ chưa chạy |
+| Uninstaller | ✅ chạy thật | 🟡 giả lập | ⬜ chưa chạy |
+
 ## Có thể làm tiếp (chưa cần)
 - Hỗ trợ OpenVPN xác thực user/password (hiện chỉ hỗ trợ certificate).
 - Import file `.ovpn` rời.

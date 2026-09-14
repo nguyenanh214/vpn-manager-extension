@@ -1,6 +1,6 @@
 # Phase 04 — Installer macOS
 
-**Ưu tiên:** Trung bình · **Trạng thái:** ⬜ Chưa làm · **Verify:** macOS (user chạy)
+**Ưu tiên:** Trung bình · **Trạng thái:** ✅ Code xong, chờ user verify trên macOS · **Verify:** macOS (user chạy)
 **Phụ thuộc:** [Phase 03](phase-03-os-abstraction.md)
 
 ## Vì sao
@@ -106,11 +106,11 @@ Sửa:
 
 ## Todo
 
-- [ ] `detect_os()` + thoát sớm nếu OS không hỗ trợ
-- [ ] Sửa mảng rỗng cho bash 3.2 — **kiểm chứng bằng `docker run --rm -v ... bash:3.2`**
-- [ ] Thư mục manifest theo OS trong cả install lẫn uninstall
-- [ ] Smoke test TUN thay cho `[ -c /dev/net/tun ]`
-- [ ] Thông báo lỗi hướng dẫn được cho 4 tình huống: thiếu Docker, Docker chưa chạy,
+- [x] `detect_os()` + thoát sớm nếu OS không hỗ trợ
+- [x] Sửa mảng rỗng cho bash 3.2 — **kiểm chứng bằng `docker run --rm -v ... bash:3.2`**
+- [x] Thư mục manifest theo OS trong cả install lẫn uninstall
+- [x] Smoke test TUN thay cho `[ -c /dev/net/tun ]`
+- [x] Thông báo lỗi hướng dẫn được cho 4 tình huống: thiếu Docker, Docker chưa chạy,
       thiếu node, không mượn được TUN
 - [ ] User chạy trên macOS: install → load extension → import `.ovpn` → bật domain → kiểm IP
 
@@ -134,3 +134,33 @@ Sửa:
 
 Không khác Linux. Thư mục state vẫn `0700`, file `.ovpn` vẫn `0600`. macOS không thêm
 ràng buộc nào cho native messaging ngoài đường dẫn manifest.
+
+## Kết quả (2026-09-14)
+
+**Đổi cấu trúc theo yêu cầu user:** ba entry point riêng thay vì một script tự dò OS.
+Nhưng KHÔNG copy logic thành hai file bash — Linux và macOS chỉ khác vài chỗ (đường
+dẫn manifest, thông báo lỗi Docker), hai file gần giống hệt nhau sẽ lệch dần mỗi lần
+sửa. Logic chung nằm ở `scripts/lib/install-common.sh`.
+
+```
+scripts/
+├── install-linux.sh        entry mỏng, đặt OS=linux
+├── install-macos.sh        entry mỏng, đặt OS=macos
+├── install-windows.ps1     implementation riêng (PowerShell)
+├── uninstall-*.sh / .ps1
+└── lib/install-common.sh, lib/uninstall-common.sh
+```
+
+Entry point chặn khi chạy nhầm máy, chỉ luôn script đúng cần dùng.
+
+**Đã kiểm chứng trên bash 3.2 thật** (container `bash:3.2`, đúng bản macOS ship):
+- Chạy trọn vẹn bước 1-5, không lỗi runtime — vấn đề mảng rỗng + `set -u` đã hết.
+  `bash -n` không bắt được lỗi này vì nó chỉ lộ lúc chạy.
+- Giả lập macOS bằng `uname` giả: ghi đúng vào
+  `~/Library/Application Support/.../NativeMessagingHosts`, xử lý được dấu cách
+  trong đường dẫn, chỉ ghi cho trình duyệt thật sự có mặt.
+- Ba tình huống Docker ra ba hướng dẫn khác nhau: chưa cài / chỉ có CLI
+  (`brew install docker`) / daemon chưa chạy.
+- `uninstall-macos.sh` dọn sạch, báo rõ số file `.ovpn` bị xoá theo.
+
+Linux không hồi quy: installer thật chạy đủ 6 bước, 106 test pass.

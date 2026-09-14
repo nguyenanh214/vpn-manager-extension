@@ -45,8 +45,8 @@ Máy dev là Linux. Phần macOS/Windows là code **chưa chạy thử** cho t�
 | 01 | [docker cp thay bind-mount](phase-01-docker-cp.md) | ✅ Xong | Linux (60 test pass) |
 | 02 | [Import file .ovpn](phase-02-ovpn-import.md) | ✅ Xong | Linux (82 test pass) |
 | 03 | [Trừu tượng hoá OS](phase-03-os-abstraction.md) | ✅ Xong | Linux (106 test pass) |
-| 04 | [Installer macOS](phase-04-installer-macos.md) | ⬜ Chưa làm | macOS (user) |
-| 05 | [Installer Windows](phase-05-installer-windows.md) | ⬜ Chưa làm | Windows (user) |
+| 04 | [Installer macOS](phase-04-installer-macos.md) | ✅ Code xong | ⬜ chờ user chạy trên macOS |
+| 05 | [Installer Windows](phase-05-installer-windows.md) | ✅ Code xong | ⬜ chờ user chạy trên Windows |
 | 06 | [Tài liệu + checklist](phase-06-docs.md) | ⬜ Chưa làm | Đọc lại |
 
 ## Phụ thuộc
