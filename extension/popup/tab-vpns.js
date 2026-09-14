@@ -8,6 +8,10 @@ const FORM_FIELDS = ['name', 'gateway', 'ca', 'cert', 'key', 'tlsCrypt', 'cipher
 let refresh = () => {};
 export function bindRefresh(fn) { refresh = fn; }
 
+// null = chua hoi duoc native host. Giu tri-state thay vi mac dinh true/false: text
+// luc chua biet phai dung o moi OS, khong duoc nhac NetworkManager roi rut lai.
+let nmAvailable = null;
+
 /** Hiện kết quả test: IP thật vs IP qua tunnel. Trùng nhau nghĩa là traffic không qua VPN. */
 function showTestResult(profile, res) {
   if (!res.ok) {
@@ -80,7 +84,12 @@ export function renderVpns(state, tunnels) {
   clear(list);
 
   if (state.vpnProfiles.length === 0) {
-    list.append(el('div', { class: 'empty', text: 'Chưa có VPN nào. Import từ NetworkManager hoặc thêm thủ công.' }));
+    // Chi nhac NetworkManager khi chac chan co: no la thu rieng cua Linux, trong khi
+    // import .ovpn va them thu cong co o moi OS.
+    const ways = nmAvailable === true
+      ? 'Để bắt đầu: import từ NetworkManager, từ file .ovpn, hoặc thêm thủ công.'
+      : 'Để bắt đầu: import từ file .ovpn hoặc thêm thủ công.';
+    list.append(el('div', { class: 'empty', text: `Chưa có VPN nào. ${ways}` }));
     return;
   }
   for (const profile of state.vpnProfiles) list.append(vpnRow(profile, tunnels, errorSlot));
@@ -142,7 +151,9 @@ export function setupVpnControls(getState) {
     e.target.disabled = false;
     if (!res.ok) return flashError(errorSlot, res.error);
     if (res.unsupported) {
+      nmAvailable = false;
       nmBtn.hidden = true;
+      refresh();
       return flashError(errorSlot, res.unsupported);
     }
     showModal('Import từ NetworkManager',
@@ -150,8 +161,12 @@ export function setupVpnControls(getState) {
   });
 
   // Ẩn hẳn nút ở OS không có NetworkManager, thay vì để user bấm rồi nhận lỗi.
+  // Host không trả lời thì không kết luận được OS -> giữ nguyên nút, đừng đoán.
   call('check-prereqs').then((r) => {
-    if (r.ok && r.os && r.os !== 'linux') nmBtn.hidden = true;
+    if (!(r.ok && r.os)) return;
+    nmAvailable = r.os === 'linux';
+    nmBtn.hidden = !nmAvailable;
+    refresh(); // text danh sách rỗng phụ thuộc nmAvailable nên phải vẽ lại
   });
 
   const setOpen = (open) => { form.hidden = !open; addBtn.hidden = open; if (open) fieldOf('name').focus(); };
