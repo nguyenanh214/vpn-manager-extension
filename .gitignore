@@ -1,0 +1,10 @@
+# Không bao giờ commit certificate hay khoá riêng
+*.pem
+*.key
+*.crt
+*.ovpn
+
+# Rác
+node_modules/
+*.log
+.DS_Store
