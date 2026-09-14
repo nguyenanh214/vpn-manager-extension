@@ -1,0 +1,7 @@
+{
+  "name": "com.andy.vpn_manager",
+  "description": "VPN Manager native host - quan ly tunnel OpenVPN trong container",
+  "path": "__HOST_PATH__",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://__EXTENSION_ID__/"]
+}
