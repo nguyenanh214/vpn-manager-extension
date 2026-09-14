@@ -75,9 +75,11 @@ async function init() {
   // Native host hoặc image thiếu thì báo ngay, đừng để user bật domain rồi mới thấy lỗi.
   const prereq = await call('check-prereqs');
   if (!prereq.ok) {
-    showBanner('danger', `Native host chưa sẵn sàng: ${prereq.error}. Chạy scripts/install.sh.`);
+    showBanner('danger', `Native host chưa sẵn sàng: ${prereq.error}. Chạy lại script cài đặt.`);
   } else if (prereq.errors?.length) {
-    showBanner('warn', prereq.errors.join(' · '));
+    // Không mượn được TUN là lỗi chặn hẳn, không phải cảnh báo nhẹ
+    const blocking = prereq.tun && !prereq.tun.ok;
+    showBanner(blocking ? 'danger' : 'warn', prereq.errors.join(' · '));
   }
 
   // Container vẫn chạy không có nghĩa tunnel còn sống — kiểm tra thật rồi vẽ lại.

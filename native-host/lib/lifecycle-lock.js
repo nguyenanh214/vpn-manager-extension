@@ -12,9 +12,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
+const platform = require('./platform');
 
-const STATE_DIR = path.join(os.homedir(), '.config', 'vpn-manager');
+const STATE_DIR = platform.stateDir();
 const HOSTS_DIR = path.join(STATE_DIR, 'hosts');
 const GRACE_MS = 15000;
 

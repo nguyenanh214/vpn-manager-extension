@@ -3,6 +3,7 @@
 
 const { execFile } = require('child_process');
 const spec = require('./container-spec');
+const { createHealth } = require('./tunnel-health');
 
 const { IMAGE, NAME_PREFIX, containerName, signatureOf, buildCreateArgs } = spec;
 
@@ -130,57 +131,7 @@ async function listRunning() {
   return stdout.trim().split('\n').filter(Boolean).map((n) => n.slice(NAME_PREFIX.length));
 }
 
-/**
- * Container chạy KHÔNG có nghĩa tunnel còn truyền được gói tin. Khi client bị server
- * đá (trùng cert chẳng hạn), tun0 vẫn up và route vẫn đúng nhưng mọi thứ im lặng cho
- * tới khi ping-restart kích hoạt. Phải thử thật mới biết.
- *
- * Hai phép thử: ping gateway tunnel (nhanh), và TCP tới 1.1.1.1:53 (không phụ thuộc
- * ICMP, phòng khi server chặn ping). Chỉ báo hỏng khi CẢ HAI đều thất bại.
- */
-async function health(profileId) {
-  if (!(await isRunning(profileId))) {
-    return { healthy: false, reason: 'Tunnel không chạy' };
-  }
-  const name = containerName(profileId);
-
-  // tun0 mất (OpenVPN đang restart) thì default route rơi về eth0 và phép thử TCP
-  // bên dưới sẽ đi ra MẠNG THƯỜNG rồi báo "khoẻ" sai. Phải chặn trước.
-  try {
-    await docker(['exec', name, 'ip', 'link', 'show', 'tun0'], { timeoutMs: 8000 });
-  } catch {
-    return { healthy: false, reason: 'Giao diện tun0 không tồn tại — tunnel đang kết nối lại' };
-  }
-
-  let gateway = '';
-  try {
-    const { stdout } = await docker(
-      ['exec', name, 'sh', '-c', "ip route | awk '/^0.0.0.0\\/1/ {print $3}'"],
-      { timeoutMs: 8000 });
-    gateway = stdout.trim();
-  } catch { /* không lấy được route thì bỏ qua phép ping */ }
-
-  if (gateway) {
-    try {
-      await docker(['exec', name, 'timeout', '5', 'ping', '-c', '1', '-W', '3', gateway],
-        { timeoutMs: 9000 });
-      return { healthy: true, via: 'ping', gateway };
-    } catch { /* thử tiếp bằng TCP */ }
-  }
-
-  try {
-    await docker(
-      ['exec', name, 'sh', '-c', 'timeout 6 socat -T3 - TCP:1.1.1.1:53 < /dev/null > /dev/null'],
-      { timeoutMs: 10000 });
-    return { healthy: true, via: 'tcp', gateway };
-  } catch { /* cả hai đều hỏng */ }
-
-  return {
-    healthy: false,
-    gateway,
-    reason: 'Tunnel không truyền được gói tin — thường do một client khác dùng cùng certificate đá mất phiên',
-  };
-}
+const { health, tunProbe } = createHealth({ docker, isRunning });
 
 async function imageExists() {
   const { stdout } = await docker(['images', '-q', IMAGE]);
@@ -188,6 +139,6 @@ async function imageExists() {
 }
 
 module.exports = {
-  start, stop, stopAll, isRunning, listRunning, getLogs, imageExists, health,
+  start, stop, stopAll, isRunning, listRunning, getLogs, imageExists, health, tunProbe,
   runningSignature, signatureOf, buildCreateArgs, IMAGE, NAME_PREFIX,
 };

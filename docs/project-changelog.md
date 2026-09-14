@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.5.0 — 2026-09-14
+
+### Trừu tượng hoá OS
+Chuẩn bị nền cho installer macOS và Windows. `native-host/lib/platform.js` là nơi duy
+nhất biết khác biệt giữa các hệ điều hành.
+
+- Thư mục state: `~/.config/vpn-manager` trên Linux/macOS, `%APPDATA%\vpn-manager`
+  trên Windows.
+- Thư mục manifest native messaging khác nhau từng OS; Windows dùng **registry** nên
+  trả về rỗng và có bảng khoá riêng cho Chrome/Chromium/Brave/Edge.
+- Nơi dò node: macOS ưu tiên `/opt/homebrew/bin` (Apple Silicon) trước `/usr/local`;
+  Windows dò `%ProgramFiles%\nodejs` và nvm-windows.
+- Dùng `path.win32` khi nhắm Windows để giả lập từ Linux vẫn sinh đúng dấu `\`.
+- `check-prereqs` thay `[ -c /dev/net/tun ]` bằng `tunProbe()` chạy container thật
+  (`ip tuntap add`). Trên macOS/Windows host không có device này vì Docker chạy trong
+  VM, kiểm tra file sẽ luôn sai. `ls /dev/net/tun` cũng không đủ — nó chỉ chứng minh
+  node thiết bị nhìn thấy được.
+- `ovpn-store` dùng `icacls` trên Windows thay `chmod`: file kế thừa ACL thư mục cha
+  nên mặc định user khác trên máy đọc được private key.
+- Nút Import NetworkManager tự ẩn ngoài Linux.
+
+Tách `tunnel-health.js` và `prereq-check.js` để không file nào vượt 200 dòng.
+
 ## 1.4.0 — 2026-09-14
 
 ### Import file .ovpn

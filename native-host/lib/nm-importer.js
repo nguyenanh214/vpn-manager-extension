@@ -3,6 +3,7 @@
 
 const { execFile } = require('child_process');
 const guard = require('./path-guard');
+const platform = require('./platform');
 
 function nmcli(args) {
   return new Promise((resolve, reject) => {
@@ -50,6 +51,11 @@ function checkCertFiles(profile) {
 
 /** Liệt kê mọi connection type=vpn dùng plugin OpenVPN. */
 async function listProfiles() {
+  // NetworkManager chỉ có trên Linux; ở nơi khác trả rỗng để UI ẩn nút đi,
+  // thay vì để user bấm rồi nhận lỗi khó hiểu.
+  if (!platform.supportsNetworkManager()) {
+    return { profiles: [], unsupported: 'NetworkManager chỉ có trên Linux' };
+  }
   const listing = await nmcli(['-t', '-f', 'NAME,TYPE', 'con', 'show']);
   const names = listing.split('\n')
     .map((l) => l.trim()).filter(Boolean)
@@ -105,7 +111,7 @@ async function listProfiles() {
 
     profiles.push(profile);
   }
-  return profiles;
+  return { profiles, unsupported: null };
 }
 
 module.exports = { listProfiles, parseVpnData, splitTerseLine, slugify };

@@ -135,13 +135,23 @@ export function setupVpnControls(getState) {
 
   setupOvpnImport(errorSlot, () => refresh());
 
-  document.getElementById('btn-import-nm').addEventListener('click', async (e) => {
+  const nmBtn = document.getElementById('btn-import-nm');
+  nmBtn.addEventListener('click', async (e) => {
     e.target.disabled = true;
     const res = await call('import-nm');
     e.target.disabled = false;
     if (!res.ok) return flashError(errorSlot, res.error);
+    if (res.unsupported) {
+      nmBtn.hidden = true;
+      return flashError(errorSlot, res.unsupported);
+    }
     showModal('Import từ NetworkManager',
       importModal(res.profiles || [], getState().vpnProfiles.map((p) => p.name)));
+  });
+
+  // Ẩn hẳn nút ở OS không có NetworkManager, thay vì để user bấm rồi nhận lỗi.
+  call('check-prereqs').then((r) => {
+    if (r.ok && r.os && r.os !== 'linux') nmBtn.hidden = true;
   });
 
   const setOpen = (open) => { form.hidden = !open; addBtn.hidden = open; if (open) fieldOf('name').focus(); };

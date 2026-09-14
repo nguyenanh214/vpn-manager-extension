@@ -9,6 +9,8 @@ const nmImporter = require('./lib/nm-importer');
 const connectionTester = require('./lib/connection-tester');
 const lifecycle = require('./lib/lifecycle-lock');
 const guard = require('./lib/path-guard');
+const platform = require('./lib/platform');
+const { checkPrereqs } = require('./lib/prereq-check');
 const ovpnStore = require('./lib/ovpn-store');
 const { parseOvpn } = require('./lib/ovpn-parser');
 
@@ -20,27 +22,11 @@ const HANDLERS = {
   },
 
   async 'check-prereqs'() {
-    const result = { docker: false, image: false, curl: false, nmcli: false, errors: [] };
-    try {
-      result.image = await dockerDriver.imageExists();
-      result.docker = true;
-      if (!result.image) result.errors.push(`Chưa có image "${dockerDriver.IMAGE}", chạy scripts/install.sh`);
-    } catch (err) {
-      result.errors.push(`Docker không dùng được: ${(err.stderr || err.message).trim()}`);
-    }
-    for (const [key, bin] of [['curl', 'curl'], ['nmcli', 'nmcli']]) {
-      try {
-        await require('util').promisify(require('child_process').execFile)(bin, ['--version'], { timeout: 5000 });
-        result[key] = true;
-      } catch {
-        result.errors.push(`Thiếu lệnh ${bin}`);
-      }
-    }
-    return result;
+    return checkPrereqs();
   },
 
   async 'list-nm-profiles'() {
-    return { profiles: await nmImporter.listProfiles() };
+    return nmImporter.listProfiles();
   },
 
   // Nội dung .ovpn chỉ đi qua đây một lần rồi nằm trên đĩa với quyền 0600.

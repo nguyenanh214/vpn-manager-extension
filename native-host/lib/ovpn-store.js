@@ -9,10 +9,31 @@
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
+const platform = require('./platform');
 
-const STATE_DIR = path.join(os.homedir(), '.config', 'vpn-manager');
+const STATE_DIR = platform.stateDir();
 const PROFILE_DIR = path.join(STATE_DIR, 'profiles');
+
+/**
+ * Giới hạn quyền đọc file về đúng chủ sở hữu.
+ *
+ * Trên Windows `chmod` không có tác dụng thật: file kế thừa ACL của thư mục cha,
+ * nghĩa là mặc định user khác trên máy vẫn đọc được. File .ovpn có private key
+ * inline nên bước này là bắt buộc, không phải tuỳ chọn.
+ */
+function restrictToOwner(target) {
+  if (platform.osKind() !== 'windows') {
+    try { fs.chmodSync(target, 0o600); } catch { /* hệ thống file không hỗ trợ */ }
+    return;
+  }
+  try {
+    const user = process.env.USERNAME || process.env.USER;
+    if (!user) return;
+    require('child_process').execFileSync(
+      'icacls', [target, '/inheritance:r', '/grant:r', `${user}:(R,W)`],
+      { stdio: 'ignore', timeout: 10000 });
+  } catch { /* không đặt được ACL thì để cảnh báo ở check-prereqs */ }
+}
 
 function ensureDir() {
   fs.mkdirSync(PROFILE_DIR, { recursive: true, mode: 0o700 });
@@ -40,7 +61,7 @@ function save(id, content) {
   // mode trong writeFileSync chỉ áp dụng khi file được TẠO MỚI; ghi đè file cũ
   // vẫn giữ quyền cũ, nên phải chmod lại.
   fs.writeFileSync(target, content, { mode: 0o600 });
-  try { fs.chmodSync(target, 0o600); } catch { /* không phải POSIX */ }
+  restrictToOwner(target);
   return target;
 }
 

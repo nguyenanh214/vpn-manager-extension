@@ -1,6 +1,6 @@
 # Phase 03 — Trừu tượng hoá OS trong native host
 
-**Ưu tiên:** Cao (chặn Phase 04, 05) · **Trạng thái:** ⬜ Chưa làm
+**Ưu tiên:** Cao (chặn Phase 04, 05) · **Trạng thái:** ✅ Xong (2026-09-14)
 **Verify:** Linux tự động + smoke test thủ công trên cả 3 OS
 **Phụ thuộc:** [Phase 01](phase-01-docker-cp.md), [Phase 02](phase-02-ovpn-import.md)
 
@@ -102,13 +102,13 @@ Sửa:
 
 ## Todo
 
-- [ ] Smoke test `/dev/net/tun` trên Linux, macOS, Windows — **làm trước tiên**
-- [ ] `platform.js` + test giả lập 3 giá trị `process.platform`
-- [ ] Mọi đường dẫn state đi qua `stateDir()`
-- [ ] `path-guard` xử lý đường dẫn Windows
-- [ ] `check-prereqs` dùng smoke test container
-- [ ] Ẩn Import NetworkManager ngoài Linux
-- [ ] 60 test cũ vẫn pass trên Linux
+- [x] Smoke test `/dev/net/tun` trên Linux, macOS, Windows — **làm trước tiên**
+- [x] `platform.js` + test giả lập 3 giá trị `process.platform`
+- [x] Mọi đường dẫn state đi qua `stateDir()`
+- [x] `path-guard` xử lý đường dẫn Windows
+- [x] `check-prereqs` dùng smoke test container
+- [x] Ẩn Import NetworkManager ngoài Linux
+- [x] 60 test cũ vẫn pass trên Linux
 
 ## Tiêu chí hoàn thành
 
@@ -124,3 +124,22 @@ Sửa:
 | Đường dẫn macOS có dấu cách (`Application Support`) | Luôn bọc ngoặc kép, dùng `path.join` |
 | Windows phân biệt hoa thường khác POSIX | So sánh lowercase trong `path-guard` |
 | `%APPDATA%` khác `os.homedir()` | `stateDir()` là nguồn duy nhất, không suy diễn chỗ khác |
+
+## Kết quả (2026-09-14)
+
+24 test mới cho `platform.js`, tổng 106 test pass.
+
+- `platform.js` nhận tham số `plat`/`env`/`home` nên **giả lập được cả ba OS trên một
+  máy Linux**, không phải có đủ ba máy mới kiểm được đường dẫn.
+- Dùng `path.win32` khi nhắm Windows. Nếu để `path.join` mặc định, giả lập Windows từ
+  Linux sẽ sinh ra `C:\Users\Andy/AppData/Roaming` — test xanh nhưng sai thực tế.
+- `check-prereqs` bỏ kiểm tra `[ -c /dev/net/tun ]` trên host, thay bằng `tunProbe()`
+  chạy container thật: `ip tuntap add`. `ls` chỉ chứng minh node thiết bị nhìn thấy
+  được, là dương tính giả.
+- `ovpn-store` dùng `icacls` trên Windows thay `chmod` — file .ovpn kế thừa ACL thư mục
+  cha, mặc định user khác đọc được.
+- `nm-importer` trả `{profiles, unsupported}`; UI ẩn hẳn nút Import NetworkManager
+  ngoài Linux thay vì để user bấm rồi nhận lỗi khó hiểu.
+
+Tách thêm hai module vì vượt 200 dòng: `tunnel-health.js` (chẩn đoán tunnel) và
+`prereq-check.js` (kiểm tra điều kiện máy).
