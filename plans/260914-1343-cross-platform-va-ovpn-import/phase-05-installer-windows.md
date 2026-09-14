@@ -1,6 +1,6 @@
 # Phase 05 — Installer Windows
 
-**Ưu tiên:** Trung bình · **Trạng thái:** ✅ Code xong, **chưa chạy thử lần nào** — chờ user · **Verify:** Windows (user chạy)
+**Ưu tiên:** Trung bình · **Trạng thái:** 🟡 Đã chạy thật trên Windows 11 — installer và native host OK, còn chờ server VPN để kiểm traffic · **Verify:** Windows 11 Pro 26200, PowerShell 5.1, 2026-09-14
 **Phụ thuộc:** [Phase 03](phase-03-os-abstraction.md)
 
 ## Vì sao Windows cần file cài riêng
@@ -130,11 +130,14 @@ Sửa:
 
 - [x] Smoke test TUN trên Windows — `TUN_OK`, backend WSL2 (2026-09-14)
 - [x] `vpn-manager-host.bat` có `@echo off`, dò được node, không in rác ra stdout
-- [ ] `install.ps1` chạy không cần quyền Administrator
-- [ ] Registry ghi đúng cho các trình duyệt có mặt trên máy
-- [ ] ACL file `.ovpn` — kiểm chứng user khác **không** đọc được
-- [ ] `uninstall.ps1` xoá sạch, `Get-ChildItem` xác nhận registry đã mất
-- [ ] User chạy trên Windows: install → load extension → import `.ovpn` → bật domain → kiểm IP
+- [x] `install.ps1` chạy không cần quyền Administrator (2026-09-14, sau khi sửa 4 lỗi)
+- [x] Registry ghi đúng cho các trình duyệt có mặt trên máy — Chrome + Edge
+- [x] ACL file `.ovpn` — `icacls` trả về đúng một ACE `Admin\Andy:(R,W)`, đã gỡ kế thừa
+- [x] `uninstall.ps1` xoá sạch registry, image, state; cài lại được ngay sau đó
+- [x] Native host trả lời đúng giao thức khi bị spawn như Chrome spawn
+- [x] `docker create` → `docker cp` từ đường dẫn `C:\...` → `docker start` chạy được
+- [ ] Chrome thật nối được tới native host qua popup — **chưa kiểm**
+- [ ] Import `.ovpn` → bật domain → traffic ra đúng IP VPN — **chặn:** server VPN chưa lên
 
 ## Tiêu chí hoàn thành
 
@@ -161,20 +164,52 @@ Windows file kế thừa ACL của thư mục cha, nghĩa là **mặc định c�
 được**. Bước `icacls` không phải tuỳ chọn — thiếu nó là private key trong `.ovpn` bị
 lộ cho mọi tài khoản trên máy.
 
-## Kết quả (2026-09-14)
+## Kết quả
 
-Đã viết, **chưa chạy trên Windows lần nào**. Những gì kiểm được từ máy Linux:
+### Viết xong, kiểm từ máy Linux (2026-09-14)
 
 - `.bat` dòng đầu là `@echo off`; 0 lệnh `echo` ra stdout, 2 thông báo đều `>&2`.
-  Thiếu `@echo off` là cmd in lại từng lệnh ra stdout và Chrome ngắt kết nối ngay.
 - `.bat` dùng ASCII không dấu: cmd chạy codepage 437/1258, tiếng Việt có dấu sẽ thành
   ký tự rác.
-- Không có cú pháp PowerShell 7 nào trong `.ps1` (đã grep `??`, ternary, `-Parallel`,
-  `-AsHashtable`, `Test-Json`).
+- Không có cú pháp PowerShell 7 nào trong `.ps1`.
 - `.gitattributes` ép `*.bat` và `*.ps1` dùng CRLF, `*.sh` dùng LF.
-- `icacls` khoá thư mục state về đúng user — trên Windows file kế thừa ACL thư mục cha
-  nên mặc định user khác đọc được private key trong `.ovpn`.
-- Registry chỉ ghi cho trình duyệt thật sự có mặt (máy user có Chrome + Edge).
+- Registry chỉ ghi cho trình duyệt thật sự có mặt.
 
-**Còn phải verify trên Windows thật:** spawn native host qua `.bat`, ghi registry,
-ACL có chặn được user khác không, và toàn bộ luồng import `.ovpn` → bật domain.
+### Chạy thật trên Windows (2026-09-14)
+
+Máy: Windows 11 Pro 26200, Windows PowerShell 5.1.26100.6584, Node v24.21.0,
+Docker Desktop backend WSL2.
+
+**4 lỗi chặn ngay từ đầu, đã sửa** (chi tiết nguyên nhân gốc trong
+[docs/project-changelog.md](../../docs/project-changelog.md)):
+
+1. `.ps1` thiếu BOM → PS 5.1 đọc bằng codepage ANSI, tiếng Việt thành rác, chết lúc parse.
+2. `node -p '...".."...'` → PowerShell bóc mất dấu nháy kép, script báo thiếu Node dù có v24.
+3. `docker build ... *> $null` → PS 5.1 bọc stderr native thành ErrorRecord, gặp
+   `$ErrorActionPreference = 'Stop'` là chết dù exit code 0.
+4. Manifest ghi kèm BOM → bộ đọc JSON của Chrome từ chối.
+
+**Đã kiểm chứng hoạt động:**
+
+| Việc | Bằng chứng |
+|---|---|
+| `install.ps1` chạy trọn 6 bước, không cần admin | Cả 6 bước in ✓ |
+| Registry Chrome + Edge | `reg query` thấy `(Default)` trỏ đúng file manifest |
+| Manifest không BOM, backslash escape đúng | 4 byte đầu là `7B 0D 0A 20`, path dạng `C:\Users\...` |
+| `.bat` không in gì ra stdout | `cmd /c ... < NUL`: stdout dài 0 byte, marker khởi động ra stderr |
+| Native messaging framing | `ping` trả `{"pong":true,...}`, `check-prereqs` trả `os:windows, docker:true, image:true, tun:{ok:true}, nmcli:null` |
+| `tunProbe` trong container | `TUN_OK` |
+| ACL file `.ovpn` | `icacls` trả đúng một ACE `Admin\Andy:(R,W)`, kế thừa đã gỡ |
+| Import `.ovpn` thật | `save-ovpn` ghi vào `%APPDATA%pn-manager\profiles\`, parser lấy đúng remote/proto/khối inline |
+| `docker cp` từ đường dẫn Windows | Container nhận `/config/client.ovpn`, OpenVPN đọc được |
+| Dọn dẹp khi lỗi | Tunnel hỏng → không còn container `vpnmgr-*` mồ côi |
+| `uninstall.ps1` | Xoá sạch registry, image, state; cài lại ngay sau đó thành công |
+
+**Chưa kiểm được:**
+
+- **Chrome thật nối tới native host qua popup.** Toàn bộ phía host đã chứng minh
+  đúng khi bị spawn giống hệt cách Chrome spawn, nhưng chưa bấm thử trên popup.
+- **Traffic ra đúng IP VPN.** File `.ovpn` user đưa trỏ tới `vpn.example.net`, tên
+  này hiện **không có bản ghi A** — cả resolver của Windows lẫn 1.1.1.1 đều trả lời
+  rỗng. Đã loại trừ lỗi phía mình: cùng container đó resolve `one.one.one.one` bình
+  thường. Phải chờ server VPN lên mới kiểm được đoạn cuối.

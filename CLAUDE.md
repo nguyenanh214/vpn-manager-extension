@@ -9,15 +9,21 @@ Kiến trúc đầy đủ: [docs/system-architecture.md](docs/system-architectur
 
 ## 🔴 Việc tiếp theo, nếu bạn đang chạy trên WINDOWS
 
-**Nhiệm vụ: test installer Windows lần đầu và sửa lỗi.**
+Installer Windows **đã chạy thật lần đầu ngày 2026-09-14** và đã sửa 4 lỗi chặn
+(xem [docs/project-changelog.md](docs/project-changelog.md)). Máy Windows này hiện
+đã cài xong, extension id `jjjlompfphjoakhblebcifjpliigghhf`.
 
-Toàn bộ phần Windows đã viết xong nhưng **chưa chạy thử lần nào**. Đọc runbook đầy đủ
-trước khi làm bất cứ gì:
+Còn đúng hai việc chưa kiểm được, **không phải vì code mà vì thiếu điều kiện**:
 
-👉 **[plans/260914-1343-cross-platform-va-ovpn-import/windows-test-handover.md](plans/260914-1343-cross-platform-va-ovpn-import/windows-test-handover.md)**
+1. **Chrome thật nối tới native host qua popup.** Phía host đã chứng minh đúng khi bị
+   spawn y hệt cách Chrome spawn; chỉ còn bấm thử trên popup.
+2. **Traffic ra đúng IP VPN.** File `.ovpn` mẫu trỏ `vpn.example.net`, tên này chưa
+   có bản ghi A — cả resolver Windows lẫn 1.1.1.1 đều trả lời rỗng. Đã loại trừ lỗi
+   phía mình: cùng container đó resolve `one.one.one.one` bình thường. Cần server VPN
+   lên mới kiểm được.
 
-Runbook đó có: lệnh cần chạy, thông tin môi trường máy này đã khảo sát (khỏi hỏi lại
-user), chỗ nhiều khả năng hỏng nhất, và ràng buộc bắt buộc phải giữ khi sửa.
+Runbook gốc (vẫn hữu ích cho phần debug và ràng buộc khi sửa):
+[plans/260914-1343-cross-platform-va-ovpn-import/windows-test-handover.md](plans/260914-1343-cross-platform-va-ovpn-import/windows-test-handover.md)
 
 ## Trạng thái
 
@@ -27,7 +33,7 @@ user), chỗ nhiều khả năng hỏng nhất, và ràng buộc bắt buộc ph
 | 02 Import file `.ovpn` | ✅ Linux |
 | 03 Trừu tượng hoá OS | ✅ Linux |
 | 04 Installer macOS | 🟡 code xong, chưa chạy trên macOS thật |
-| 05 Installer Windows | 🟡 code xong, **chưa chạy lần nào** |
+| 05 Installer Windows | 🟡 đã chạy thật, sửa 4 lỗi; còn chờ server VPN |
 | 06 Tài liệu | ⬜ chưa làm |
 
 Kế hoạch: [plans/260914-1343-cross-platform-va-ovpn-import/plan.md](plans/260914-1343-cross-platform-va-ovpn-import/plan.md)

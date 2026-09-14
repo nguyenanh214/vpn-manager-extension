@@ -48,7 +48,7 @@ Máy dev là Linux. Phần macOS/Windows là code **chưa chạy thử** cho t�
 | 02 | [Import file .ovpn](phase-02-ovpn-import.md) | ✅ Xong | Linux (82 test pass) |
 | 03 | [Trừu tượng hoá OS](phase-03-os-abstraction.md) | ✅ Xong | Linux (106 test pass) |
 | 04 | [Installer macOS](phase-04-installer-macos.md) | ✅ Code xong | ⬜ chờ user chạy trên macOS |
-| 05 | [Installer Windows](phase-05-installer-windows.md) | ✅ Code xong | ⬜ chờ user chạy trên Windows |
+| 05 | [Installer Windows](phase-05-installer-windows.md) | 🟡 Đã chạy thật, sửa 4 lỗi | 🟡 Windows 11 + PS 5.1 — installer/native host OK, còn chờ server VPN để kiểm traffic |
 | 06 | [Tài liệu + checklist](phase-06-docs.md) | ⬜ Chưa làm | Đọc lại |
 
 ## Phụ thuộc

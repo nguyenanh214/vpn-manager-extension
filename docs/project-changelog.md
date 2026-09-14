@@ -1,5 +1,48 @@
 # Changelog
 
+## Chưa phát hành
+
+### Windows — chạy installer lần đầu (2026-09-14)
+
+Bốn lỗi, tất cả đều chặn ngay từ những dòng đầu. Nguyên nhân gốc đều nằm ở chỗ
+Windows PowerShell 5.1 và Chrome xử lý **encoding** và **stderr của native exe**
+khác với những gì code viết từ máy Linux giả định.
+
+- **`.ps1` lưu UTF-8 không BOM → script chết lúc parse.** PS 5.1 không đoán encoding
+  của file `.ps1`: không có BOM thì nó đọc bằng codepage ANSI của máy. Mọi ký tự
+  tiếng Việt vỡ thành chuỗi byte lạ, trong đó có byte mà parser hiểu là dấu nháy,
+  nên báo một loạt "Unexpected token" và "string is missing the terminator" ở những
+  dòng hoàn toàn bình thường. Sửa: thêm BOM cho cả hai `.ps1`. (PS 7 mặc định coi
+  file không BOM là UTF-8 nên lỗi này không xuất hiện nếu chỉ test bằng `pwsh`.)
+  Kèm theo phải đặt `[Console]::OutputEncoding` sang UTF-8, vì console mặc định là
+  codepage 437/1258 — parse đúng rồi thì chữ in ra màn hình vẫn là rác.
+
+- **`node -p` báo sai phiên bản Node.** PowerShell bóc một lớp dấu nháy kép trong
+  đối số trước khi giao cho `node.exe`, nên `process.versions.node.split(".")[0]`
+  tới nơi thành `split(.)[0]` và hỏng cú pháp. `node -p` in lỗi rồi trả chuỗi rỗng,
+  `[int]''` thành 0, script kết luận "Cần Node >= 18" trên máy đang chạy v24. Sửa:
+  lấy version bằng `node -v` rồi tách chuỗi trong PowerShell, không đẩy biểu thức JS
+  qua ranh giới dấu nháy.
+
+- **`docker build ... *> $null` làm script chết dù docker thành công.** PS 5.1 bọc
+  **từng dòng** stderr của native exe thành `ErrorRecord`; `$ErrorActionPreference =
+  'Stop'` biến một dòng tiến trình bình thường (`#0 building with "desktop-linux"`)
+  thành lỗi kết thúc, ngay cả khi exit code là 0. Sửa: thêm `Invoke-Native` hạ
+  preference xuống `'Continue'` quanh mỗi lệnh native rồi trả lại; người gọi vẫn tự
+  kiểm `$LASTEXITCODE` như cũ.
+
+- **Manifest native messaging ghi kèm BOM.** `Set-Content -Encoding UTF8` của PS 5.1
+  **luôn** thêm BOM, mà bộ đọc JSON của Chrome từ chối BOM — Chrome sẽ coi như không
+  có native host nào và báo "Specified native messaging host not found", một triệu
+  chứng không hề gợi tới encoding. Sửa: ghi bằng
+  `[System.IO.File]::WriteAllText(..., UTF8Encoding($false))`.
+
+Đã kiểm chứng chạy thật sau khi sửa: cài → gỡ → cài lại trọn vẹn; registry Chrome và
+Edge đúng; native host trả lời `ping`/`check-prereqs` qua đúng giao thức khi bị spawn
+y như Chrome spawn; `docker cp` từ đường dẫn Windows vào container chạy được; `icacls`
+khoá file `.ovpn` về đúng một user. Chưa kiểm được đoạn cuối (traffic ra IP VPN) vì
+server VPN trong file `.ovpn` mẫu chưa có bản ghi DNS.
+
 ## 1.6.0 — 2026-09-14
 
 ### Installer cho ba hệ điều hành
