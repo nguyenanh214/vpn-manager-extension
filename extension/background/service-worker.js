@@ -87,15 +87,32 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   return true; // giữ kênh mở cho phản hồi bất đồng bộ
 });
 
+/**
+ * Xoá file .ovpn không còn profile nào trỏ tới.
+ *
+ * Chạy lúc khởi động chứ không phải mỗi lần xoá VPN: luồng xoá đã tự lo phần của nó.
+ * Cái này bắt các trường hợp còn lại — import ghi file xong thì service worker bị
+ * kill trước khi kịp lưu profile, hoặc storage của extension bị xoá sạch.
+ */
+async function pruneOrphanConfigs() {
+  const state = await getState();
+  const keepIds = state.vpnProfiles.filter((p) => p.mode === 'ovpn').map((p) => p.id);
+  const { removed } = await bridge.send('prune-ovpn', { keepIds });
+  if (removed?.length) console.warn('[vpn-manager] đã xoá file .ovpn mồ côi:', removed);
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   const stored = await chrome.storage.local.get('schemaVersion');
   if (!stored.schemaVersion) await chrome.storage.local.set(DEFAULT_STATE);
   await proxy.clearProxy();
+  // Nuốt lỗi được ở đây: hụt lần này thì lần khởi động sau dọn tiếp, không mất gì.
+  await pruneOrphanConfigs().catch(() => {});
 });
 
 // Chrome khởi động lại vẫn giữ PAC cũ trỏ tới cổng SOCKS đã chết.
 // Phải xoá trước, dựng lại tunnel, rồi mới áp PAC mới.
 chrome.runtime.onStartup.addListener(async () => {
   await proxy.clearProxy();
+  await pruneOrphanConfigs().catch(() => {});
   await reconcile().catch(() => {});
 });

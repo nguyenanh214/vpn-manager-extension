@@ -4,7 +4,7 @@
 set -uo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
-SUITES="${*:-platform popup ovpn routing forwards lifecycle host-registry}"
+SUITES="${*:-platform ovpn-store popup ovpn routing forwards lifecycle host-registry}"
 total_fail=0
 
 for suite in $SUITES; do
@@ -13,7 +13,7 @@ for suite in $SUITES; do
 
   # host-registry không cần trình duyệt, nó spawn native host trực tiếp
   case "$suite" in
-    host-registry|platform) needs_browser=0 ;;
+    host-registry|platform|ovpn-store) needs_browser=0 ;;
     *) needs_browser=1 ;;
   esac
   if [ "$needs_browser" = "1" ]; then

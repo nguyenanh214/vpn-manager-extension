@@ -43,6 +43,11 @@ const HANDLERS = {
     return ovpnStore.remove(payload.id);
   },
 
+  // Extension là bên duy nhất biết profile nào còn sống; host chỉ nhìn thấy file.
+  async 'prune-ovpn'(payload) {
+    return ovpnStore.pruneExcept(payload.keepIds);
+  },
+
   async 'check-paths'(payload) {
     const out = {};
     for (const [field, value] of Object.entries(payload.paths || {})) {

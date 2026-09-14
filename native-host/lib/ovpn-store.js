@@ -83,6 +83,33 @@ function exists(id) {
   return fs.existsSync(configPath(id));
 }
 
+/**
+ * Xoá mọi config không còn profile nào trỏ tới.
+ *
+ * Mồ côi sinh ra khi save() ghi file xong mà extension chưa kịp lưu profile —
+ * service worker MV3 bị Chrome kill bất cứ lúc nào — hoặc khi storage của extension
+ * bị xoá. Không ai dọn thì private key nằm lại trên đĩa vĩnh viễn, mà UI không còn
+ * chỗ nào trỏ tới để user xoá.
+ *
+ * Chỉ extension biết id nào còn sống, host chỉ thấy file. Nên danh sách giữ lại phải
+ * do bên gọi đưa vào, và phải là mảng thật: thiếu nó mà mặc định thành rỗng là xoá
+ * sạch config của user.
+ */
+function pruneExcept(keepIds) {
+  if (!Array.isArray(keepIds)) throw new Error('pruneExcept: keepIds phải là mảng');
+  const keep = new Set(keepIds);
+  const removed = [];
+  for (const id of list()) {
+    if (keep.has(id)) continue;
+    // configPath tự kiểm id nên tên file rác trên đĩa bị bỏ qua thay vì xoá nhầm
+    try {
+      fs.unlinkSync(configPath(id));
+      removed.push(id);
+    } catch { /* đã bị xoá, hoặc tên file không phải id hợp lệ */ }
+  }
+  return { removed };
+}
+
 /** Id của mọi config đang lưu — dùng để dọn file mồ côi. */
 function list() {
   try {
@@ -94,4 +121,6 @@ function list() {
   }
 }
 
-module.exports = { save, remove, read, exists, list, configPath, PROFILE_DIR };
+module.exports = {
+  save, remove, read, exists, list, pruneExcept, configPath, PROFILE_DIR,
+};

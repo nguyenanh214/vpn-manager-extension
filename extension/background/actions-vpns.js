@@ -86,14 +86,24 @@ export const vpnActions = {
       return { ok: false, error: 'Đang được dùng', domains: inUse };
     }
 
-    await bridge.send('stop-tunnel', { profileId: payload.id }).catch(() => {});
-    dropTunnel(payload.id);
-
-    // File .ovpn chứa private key inline — xoá profile mà để lại file là để rơi secret
+    // File .ovpn chứa private key inline, nên xoá nó TRƯỚC khi gỡ profile khỏi
+    // storage. Gỡ trước rồi xoá hụt là để lại secret mà không còn gì trong UI trỏ
+    // tới nó, trong khi user tin là đã xoá xong. Hụt thì dừng hẳn, chưa đụng gì,
+    // để user thử lại — đừng nuốt lỗi.
     const target = state.vpnProfiles.find((p) => p.id === payload.id);
     if (target?.mode === 'ovpn') {
-      await bridge.send('delete-ovpn', { id: payload.id }).catch(() => {});
+      try {
+        await bridge.send('delete-ovpn', { id: payload.id });
+      } catch (err) {
+        return {
+          ok: false,
+          error: `Chưa xoá được file .ovpn: ${err.message}. VPN vẫn còn nguyên để bạn thử lại.`,
+        };
+      }
     }
+
+    await bridge.send('stop-tunnel', { profileId: payload.id }).catch(() => {});
+    dropTunnel(payload.id);
     await patchState({
       vpnProfiles: state.vpnProfiles.filter((p) => p.id !== payload.id),
       domains: state.domains.map((d) =>
