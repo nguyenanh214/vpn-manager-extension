@@ -215,4 +215,35 @@ trỏ tới `vpn.example.net`, tên đó **không có bản ghi A** — cả res
 1.1.1.1 đều trả lời rỗng, trong khi cùng container ấy resolve `one.one.one.one` bình
 thường. File user import qua popup trỏ thẳng IP nên không vướng DNS.
 
+### Bổ sung: test tự động chạy trên Windows (2026-09-15)
+
+Ba bộ test trước đây chỉ chạy được trên Linux, nay chạy thật trên chính máy Windows
+này. Không sửa một dòng nào trong `native-host/` hay `extension/` — lỗi nằm ở bộ test,
+không phải ở tính năng.
+
+| Bộ | Kết quả | Phủ cái gì |
+|---|---|---|
+| `platform` | 24/24 | Đường dẫn và hành vi theo OS |
+| `ovpn-store` | 9/9 | Dọn file .ovpn mồ côi, ACL Windows |
+| `prune-ovpn` | 8/8 | Đường xoá file đi qua native messaging thật |
+| `host-registry` | 9/9 | Chỉ host CUỐI CÙNG thoát mới được dọn tunnel, tunnel thật |
+| `traffic` | 7/7 | Traffic thật sự đi qua tunnel |
+
+`traffic` là bộ mới, dựng để đóng đúng khoảng trống traffic chưa kiểm mà không cần
+Chrome for Testing:
+
+| Đo | Giá trị |
+|---|---|
+| IP trực tiếp trước khi bật | `198.51.100.20` |
+| Qua SOCKS `127.0.0.1:1099` | `203.0.113.10` — đúng IP máy chủ VPN |
+| IP trực tiếp trong lúc tunnel bật | `198.51.100.20` — không bị đổi đường |
+| DNS phân giải trong tunnel | Cùng lối ra `203.0.113.10`, không rò ra resolver máy |
+
+**Vẫn CHƯA kiểm trên Windows:** lớp PAC của `chrome.proxy` — đúng domain đã bật mới đi
+qua tunnel, còn lại đi thẳng. Đó là `routing.test.mjs`, cần Chrome for Testing nên vẫn
+chỉ chạy trên Linux. Đường ống bên dưới PAC thì đã có bằng chứng đầy đủ.
+
+Tám lỗi của bộ test lộ ra trong phiên này, chi tiết nguyên nhân gốc
+trong [docs/project-changelog.md](../../docs/project-changelog.md).
+
 Phase 05 đến đây là **xong**.

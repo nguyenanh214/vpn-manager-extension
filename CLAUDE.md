@@ -46,20 +46,29 @@ Kế hoạch: [plans/260914-1343-cross-platform-va-ovpn-import/plan.md](plans/26
 
 ## Kiểm thử
 
-122 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
+130 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
 
 ```bash
 tests/run-all.sh              # tất cả
 tests/run-all.sh platform     # một bộ
 ```
 
-Hai bộ không cần trình duyệt lẫn Docker, chạy được ở bất cứ đâu có Node:
+Năm bộ không cần trình duyệt, chạy được trên cả ba OS — kể cả Windows:
 
 - `platform` (24 test) — giả lập cả ba OS
 - `ovpn-store` (9 test) — dọn file .ovpn mồ côi, chạy trong sandbox bằng cách trỏ
   `APPDATA`/`HOME` vào thư mục tạm
-- `prune-ovpn` (7 test) — cùng chức năng nhưng đi qua native host thật; cần Docker để
-  kiểm chốt chặn, tự bỏ qua nếu đang có tunnel chạy
+- `prune-ovpn` (8 test) — cùng chức năng nhưng đi qua native host thật, spawn đúng
+  wrapper của OS. Host cũng chạy trong sandbox `APPDATA`/`HOME` nên không đụng
+  profile thật. Tự bỏ qua nếu đang có tunnel chạy; không có Docker vẫn chạy được
+- `host-registry` (9 test) — chỉ host CUỐI CÙNG thoát mới được dọn tunnel. Nặng
+  nhất repo: dựng tunnel THẬT nên cần Docker, image đã build và một .ovpn chạy được
+  (tự lấy file đầu tiên trong `profiles/`, hoặc chỉ định bằng `VPNMGR_TEST_OVPN`).
+  Registry chạy trong sandbox nên **không cần đóng Chrome** nữa. Mất ~1 phút
+- `traffic` (7 test) — traffic có thật sự đi qua tunnel không: so IP giữa `curl`
+  trực tiếp và `curl` qua cổng SOCKS, và kiểm traffic ngoài tunnel không bị đổi
+  đường. Cùng yêu cầu như `host-registry`. KHÔNG phủ lớp PAC của `chrome.proxy`
+  — chọn đúng domain nào đi tunnel vẫn là việc của `routing`
 
 ## Quy ước
 
@@ -99,3 +108,15 @@ Hai bộ không cần trình duyệt lẫn Docker, chạy được ở bất c�
   messaging host not found" — triệu chứng không gợi gì tới encoding.
 - **Spawn native host là hẹn giờ dọn tunnel.** Host đóng stdin sẽ chờ grace 15s rồi
   `stopAll()`. Đừng spawn host để thử nghiệm khi user đang có tunnel chạy thật.
+- **Giết native host trên Windows phải giết cả cây process.** Launcher là `.bat` nên
+  nó chạy dưới `cmd.exe`; `child.kill()` chỉ hạ `cmd.exe`, còn `node.exe` sống tiếp,
+  thấy stdin EOF rồi `stopAll()` sau 15s — đúng thứ mình tưởng đã tránh được. Dùng
+  `taskkill /PID <pid> /T /F`.
+- **Test spawn host phải sandbox `APPDATA`/`HOME`.** Host tính `stateDir()` từ env
+  lúc nạp module, nên truyền env tạm là đủ tách khỏi profile thật. Không làm thế thì
+  `prune-ovpn` với `keepIds: []` xoá sạch file `.ovpn` của chính người chạy test.
+- **"PATH tối thiểu" của Chrome không giống nhau giữa các OS.** Trên Linux Chrome
+  đúng là cho `/usr/bin:/bin`, và `docker` nằm sẵn ở đó nên test giả lập được. Trên
+  Windows Chrome truyền nguyên PATH của user, mà `docker.exe` nằm trong thư mục cài
+  Docker Desktop — bê nguyên PATH tối thiểu kiểu Linux sang là host báo
+  `spawn docker ENOENT`, triệu chứng trông như Docker chưa chạy.

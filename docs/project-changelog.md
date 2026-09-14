@@ -1,5 +1,83 @@
 # Changelog
 
+## 1.8.0 — 2026-09-15
+
+### Test chạy được trên Windows, và tám lỗi của chính bộ test
+
+`prune-ovpn` và `host-registry` viết từ máy Linux, chưa chạy trên Windows lần nào.
+Chạy thử thì lộ ra tám lỗi — **tất cả nằm trong bộ test**. Code sản phẩm qua hết mà
+không phải sửa một dòng nào trong `native-host/` hay `extension/`. Có đúng một điểm
+đáng ngờ ở `path-guard.js` được ghi lại bên dưới, chưa sửa.
+
+Hai lỗi nguy hiểm, cùng một gốc: **test dùng state dir THẬT của user.**
+
+- `prune-ovpn` spawn host với `HOME` thật rồi bước cuối gọi `prune-ovpn` với
+  `keepIds: []` — tức là xoá sạch mọi `.ovpn` của chính người chạy test. Private key
+  inline, mất là mất hẳn. Sửa: trỏ `APPDATA`/`HOME` vào thư mục tạm, và dừng hẳn nếu
+  `PROFILE_DIR` tính ra lại nằm ngoài sandbox.
+- `host-registry` **không có chốt chặn nào cả**, mà bước cuối của nó cố ý kích hoạt
+  `stopAll()` — lệnh này xoá mọi container `vpnmgr-*` chứ không riêng container của
+  test. Chạy lúc user đang bật tunnel là tunnel bay, im lặng.
+
+Một lỗi khiến `host-registry` kiểm sai chứ không chỉ kiểm hụt: registry không sandbox
+nên host thật do Chrome spawn cũng nằm trong `hosts/`. `2 host đăng ký` đọc ra 3, và B
+không bao giờ là host cuối cùng nên **nhánh dọn tunnel không bao giờ được kiểm**.
+Trước đây phải đóng hẳn Chrome mới chạy được bộ này; giờ thì không cần.
+
+Ba lỗi còn lại đều là giả định Linux bị bê nguyên sang Windows:
+
+- **`execSync` với nháy đơn kiểu POSIX.** `cmd.exe` không coi `'` là dấu nháy, nên
+  `docker ps --filter 'name=^vpnmgr-'` thành `invalid filter ''name'`. Chốt chặn của
+  `prune-ovpn` chết ngay ở đó — may là chết trước khi kịp phá, nhưng đó là tai nạn
+  chứ không phải thiết kế. Sửa: `execFileSync` với mảng tham số.
+- **`child.pid` là pid của `cmd.exe`, không phải của node.** Launcher Windows là
+  `.bat` nên chạy dưới `cmd.exe`, mà registry lưu pid của tiến trình node. Assert
+  `registered()[0] === String(b.pid)` không bao giờ khớp được. Sửa: hỏi thẳng host
+  qua `ping`, nó trả `process.pid` của chính nó.
+- **Giết host phải giết cả cây.** Cùng gốc: `child.kill()` chỉ hạ `cmd.exe`, còn
+  `node.exe` sống tiếp, thấy stdin EOF rồi `stopAll()` sau 15s — đúng thứ chốt chặn
+  cố tránh. Mỗi lần chạy test để lại một host mồ côi có 15 giây vũ trang sẵn. Sửa:
+  `taskkill /PID <pid> /T /F`.
+
+Còn một lỗi chỉ lộ khi chạy thật: host báo `spawn docker ENOENT`. Nguyên nhân là
+**"PATH tối thiểu" của Chrome không giống nhau giữa các OS.** Trên Linux Chrome đúng
+là cho `/usr/bin:/bin` và `docker` nằm sẵn ở đó, nên test giả lập được. Trên Windows
+Chrome truyền nguyên PATH của user, mà `docker.exe` nằm trong thư mục cài Docker
+Desktop — cắt PATH kiểu Linux là host tưởng như Docker chưa chạy.
+
+Và một lỗi macOS tìm ra khi rà lại nhánh chưa chạy được: `path-guard` so
+`realpathSync(file)` với `HOME` **chưa resolve**. macOS trỏ `/tmp` và `/var` qua
+symlink sang `/private`, nên cert nằm ngay trong sandbox vẫn bị báo `phải nằm trong
+thư mục home`. Sửa: `realpathSync()` quanh thư mục sandbox ngay khi tạo.
+
+Lưu ý cho phiên macOS: bản vá trên chỉ né vấn đề trong test, **`path-guard.js` vẫn
+giữ nguyên thế bất đối xứng** — nó realpath đường dẫn cert nhưng không realpath
+`HOME`. Home tiêu chuẩn của macOS (`/Users/<tên>`) không có symlink nên user thường
+không dính, nhưng home nằm trên ổ ngoài hay qua symlink là cert hợp lệ bị từ chối với
+thông báo khó hiểu. Chưa sửa vì chưa có máy macOS để dựng lại tình huống.
+
+### Bộ test mới: `traffic` (7 test)
+
+`ovpn.test.mjs` đã kiểm traffic thật đi qua tunnel, nhưng đi qua Chrome for Testing
+nên chỉ chạy được trên Linux — khoảng trống lớn nhất còn lại của Windows. Bộ mới bỏ
+lớp trình duyệt: dựng tunnel qua native host thật rồi so IP giữa `curl` trực tiếp và
+`curl` qua cổng SOCKS.
+
+Kết quả trên Windows 11: qua SOCKS ra `203.0.113.10` đúng IP máy chủ VPN, trực tiếp
+vẫn `198.51.100.20` không bị đổi đường, DNS phân giải trong tunnel cùng lối ra.
+
+Bộ này **không** phủ lớp PAC của `chrome.proxy` — chọn đúng domain nào đi tunnel vẫn
+là việc của `routing.test.mjs` và vẫn chỉ chạy trên Linux.
+
+### Kiểm chứng
+
+Chạy thật trên Windows 11 Pro 26200, Node v24.21.0, Docker Desktop WSL2:
+`platform` 24/24, `ovpn-store` 9/9, `prune-ovpn` 8/8, `host-registry` 9/9,
+`traffic` 7/7. Tổng **130 test**, 57 trong số đó nay có bằng chứng trên Windows.
+
+Nhánh POSIX của ba file này vẫn **chưa chạy** — kể cả bản vá `realpath`. Phiên macOS
+chạy `tests/run-all.sh prune-ovpn host-registry traffic` sẽ đóng nốt.
+
 ## 1.7.1 — 2026-09-15
 
 ### Kiểm chứng
