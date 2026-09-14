@@ -34,7 +34,7 @@ killswitch chặn rò rỉ.
 
 ## Kiểm thử
 Bộ test nằm trong `tests/`, chạy bằng `tests/run-all.sh`.
-60 test tự động, chạy với Chrome khởi động bằng `env -i` (PATH tối thiểu, đúng
+82 test tự động, chạy với Chrome khởi động bằng `env -i` (PATH tối thiểu, đúng
 môi trường Chrome thật spawn native host):
 
 | Bộ | Số test | Phạm vi |
@@ -44,12 +44,19 @@ môi trường Chrome thật spawn native host):
 | forward | 18 | CRUD, validate, traffic thật qua forward, dựng lại khi đổi cổng |
 | UI/lifecycle | 9 | Giữ trạng thái popup, cuộn danh sách, tự tắt tunnel khi đóng Chrome |
 | multi-host | 9 | Nhiều trình duyệt: chỉ host cuối cùng mới được dọn tunnel |
+| ovpn | 22 | Parse, từ chối file chưa hỗ trợ, quyền 0600, kết nối thật bằng file |
 
 ## Phase 8 — docker cp thay bind-mount — ✅ Hoàn thành
 Cert vào container bằng `docker create` → `docker cp` → `docker start`, bỏ hẳn
 bind-mount. Chuẩn bị cho Windows (không còn dịch đường dẫn `C:\Users\...`).
 `signatureOf` băm nội dung cert thay vì đường dẫn — nếu không, đổi cert sẽ không
 dựng lại container và tunnel chạy tiếp bằng cert cũ.
+
+## Phase 9 — Import file .ovpn — ✅ Hoàn thành
+Nút import ở tab VPN mở hộp thoại chọn file. Chrome không cho extension biết đường dẫn
+thật nên nội dung được đọc rồi native host ghi ra `~/.config/vpn-manager/profiles/`
+quyền 0600. Container dùng thẳng file, không parse rồi dựng lại — file có thể chứa
+directive lạ mà dựng lại sẽ làm mất.
 
 ## Có thể làm tiếp (chưa cần)
 - Hỗ trợ OpenVPN xác thực user/password (hiện chỉ hỗ trợ certificate).

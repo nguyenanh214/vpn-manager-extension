@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.4.0 — 2026-09-14
+
+### Import file .ovpn
+Nút `Import từ file .ovpn` ở tab VPN. Import xong là dùng được ngay, không phải điền
+gateway và 4 đường dẫn cert như trước.
+
+- Chrome **không** cho extension biết đường dẫn thật của file người dùng chọn
+  (`File` object không có `.path`), nên bắt buộc đọc nội dung rồi nhờ native host ghi
+  ra đĩa. Nội dung không bao giờ vào `chrome.storage` — chỉ đường dẫn được lưu.
+- File lưu ở `~/.config/vpn-manager/profiles/<id>.ovpn` quyền `0600`. Xoá profile thì
+  xoá luôn file, không để lại private key mồ côi.
+- Container **dùng thẳng file**, không parse rồi dựng lại config. File .ovpn có thể
+  chứa directive lạ (mẫu thật có `ignore-unknown-option block-outside-dns`) mà dựng
+  lại sẽ làm mất. Các override của extension truyền qua tham số dòng lệnh.
+- `explicit-exit-notify` chỉ thêm khi `proto udp` — thêm vào lúc TCP là OpenVPN báo lỗi.
+- Parser từ chối ngay lúc import, kèm lý do cụ thể: file trỏ cert bên ngoài,
+  cần `auth-user-pass`, private key mã hoá bằng passphrase.
+- `signatureOf` băm nội dung file .ovpn, nên sửa file bên ngoài cũng làm container dựng lại.
+
+### Đã kiểm chứng
+82/82 test pass, gồm kết nối thật bằng file .ovpn và kiểm tra `chrome.storage` không
+chứa chuỗi `BEGIN` nào.
+
 ## 1.3.0 — 2026-09-14
 
 ### Thay đổi

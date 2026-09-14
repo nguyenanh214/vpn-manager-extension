@@ -14,6 +14,7 @@ const guard = require('./path-guard');
 const IMAGE = 'vpn-manager-socks';
 const NAME_PREFIX = 'vpnmgr-';
 const CONFIG_DIR = '/config';
+const OVPN_IN_CONTAINER = `${CONFIG_DIR}/client.ovpn`;
 
 // Ánh xạ field profile -> tên file trong container + biến env OpenVPN
 const CERT_FIELDS = [
@@ -42,15 +43,23 @@ function hashFile(filePath) {
  * Vân tay cấu hình. Đổi gateway, nội dung cert, cổng SOCKS hay danh sách forward đều
  * làm signature đổi -> start() biết phải dựng lại container thay vì dùng lại cái cũ.
  */
+const isOvpnMode = (profile) => profile.mode === 'ovpn' && !!profile.configPath;
+
 function signatureOf(profile) {
   const certHashes = {};
-  for (const [field] of CERT_FIELDS) {
-    if (!profile[field]) continue;
-    const real = guard.assertSafeCertPath(profile[field], field);
-    certHashes[field] = hashFile(real);
+  if (isOvpnMode(profile)) {
+    // Sửa file .ovpn bên ngoài cũng phải làm container dựng lại
+    certHashes.ovpn = hashFile(guard.assertSafeCertPath(profile.configPath, 'configPath'));
+  } else {
+    for (const [field] of CERT_FIELDS) {
+      if (!profile[field]) continue;
+      const real = guard.assertSafeCertPath(profile[field], field);
+      certHashes[field] = hashFile(real);
+    }
   }
 
   const material = JSON.stringify({
+    mode: isOvpnMode(profile) ? 'ovpn' : 'manual',
     gateway: profile.gateway,
     socksPort: Number(profile.socksPort),
     certHashes,
@@ -82,18 +91,31 @@ function buildCreateArgs(profile) {
     '-e', `VPN_GATEWAY=${gateway}`,
   ];
 
-  if (!profile.ca) throw new Error('Thiếu CA certificate');
-
   const copies = [];
-  for (const [field, fileName, envVar] of CERT_FIELDS) {
-    if (!profile[field]) continue;
-    const real = guard.assertSafeCertPath(profile[field], field);
-    copies.push({ src: real, dest: `${CONFIG_DIR}/${fileName}` });
-    args.push('-e', `${envVar}=${CONFIG_DIR}/${fileName}`);
+
+  if (isOvpnMode(profile)) {
+    // Chế độ file: dùng thẳng .ovpn user import, không sinh lại config.
+    // File có thể chứa directive lạ mà parse lại sẽ làm mất.
+    const real = guard.assertSafeCertPath(profile.configPath, 'configPath');
+    copies.push({ src: real, dest: OVPN_IN_CONTAINER });
+    args.push('-e', `VPN_CONFIG_FILE=${OVPN_IN_CONTAINER}`);
+    // entrypoint cần biết proto để quyết định có thêm explicit-exit-notify không
+    // (thêm vào lúc proto tcp sẽ làm OpenVPN báo lỗi cấu hình)
+    if (/^(udp|tcp)$/.test(profile.proto || '')) {
+      args.push('-e', `VPN_PROTO=${profile.proto}`);
+    }
+  } else {
+    if (!profile.ca) throw new Error('Thiếu CA certificate');
+    for (const [field, fileName, envVar] of CERT_FIELDS) {
+      if (!profile[field]) continue;
+      const real = guard.assertSafeCertPath(profile[field], field);
+      copies.push({ src: real, dest: `${CONFIG_DIR}/${fileName}` });
+      args.push('-e', `${envVar}=${CONFIG_DIR}/${fileName}`);
+    }
   }
 
   // Các tuỳ chọn chỉ nhận giá trị khớp whitelist, tránh chèn directive lạ vào .ovpn
-  const opts = [
+  const opts = isOvpnMode(profile) ? [] : [
     ['VPN_CIPHER', profile.cipher, /^[A-Za-z0-9-]{1,32}$/],
     ['VPN_AUTH', profile.auth, /^[A-Za-z0-9-]{1,32}$/],
     ['VPN_VERIFY_X509', profile.verifyX509, /^[A-Za-z0-9._-]{1,128}$/],
@@ -123,6 +145,6 @@ function buildCreateArgs(profile) {
 }
 
 module.exports = {
-  buildCreateArgs, signatureOf, containerName,
+  buildCreateArgs, signatureOf, containerName, isOvpnMode,
   IMAGE, NAME_PREFIX, CONFIG_DIR,
 };

@@ -9,6 +9,8 @@ const nmImporter = require('./lib/nm-importer');
 const connectionTester = require('./lib/connection-tester');
 const lifecycle = require('./lib/lifecycle-lock');
 const guard = require('./lib/path-guard');
+const ovpnStore = require('./lib/ovpn-store');
+const { parseOvpn } = require('./lib/ovpn-parser');
 
 const log = (...a) => process.stderr.write(`[vpn-manager-host] ${a.join(' ')}\n`);
 
@@ -39,6 +41,20 @@ const HANDLERS = {
 
   async 'list-nm-profiles'() {
     return { profiles: await nmImporter.listProfiles() };
+  },
+
+  // Nội dung .ovpn chỉ đi qua đây một lần rồi nằm trên đĩa với quyền 0600.
+  // Extension không bao giờ lưu nội dung, chỉ giữ đường dẫn.
+  async 'save-ovpn'(payload) {
+    const parsed = parseOvpn(payload.content);
+    if (!parsed.ok) return { ok: false, errors: parsed.errors };
+
+    const configPath = ovpnStore.save(payload.id, payload.content);
+    return { ok: true, configPath, info: parsed.info };
+  },
+
+  async 'delete-ovpn'(payload) {
+    return ovpnStore.remove(payload.id);
   },
 
   async 'check-paths'(payload) {

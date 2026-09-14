@@ -42,6 +42,40 @@ export const vpnActions = {
     return { ok: true, profile };
   },
 
+  /**
+   * Import file .ovpn. Chrome không cho extension biết đường dẫn thật của file user
+   * chọn, nên bắt buộc đọc nội dung rồi nhờ native host ghi ra đĩa. Nội dung không
+   * bao giờ vào chrome.storage — chỉ đường dẫn file đã lưu được lưu lại.
+   */
+  async 'import-ovpn'(payload) {
+    const state = await getState();
+    const name = String(payload.name || '').trim();
+    if (!name) return { ok: false, error: 'Nhập tên VPN' };
+    if (state.vpnProfiles.some((p) => p.name === name)) {
+      return { ok: false, error: 'Tên VPN này đã tồn tại' };
+    }
+    if (!payload.content) return { ok: false, error: 'Không đọc được nội dung file' };
+
+    const id = makeId('vpn');
+    const saved = await bridge.send('save-ovpn', { id, content: payload.content });
+    if (!saved.ok) {
+      return { ok: false, error: 'File .ovpn chưa dùng được', errors: saved.errors };
+    }
+
+    const profile = {
+      id,
+      name,
+      mode: 'ovpn',
+      source: 'ovpn',
+      configPath: saved.configPath,
+      gateway: saved.info.gateway,
+      proto: saved.info.proto,
+      socksPort: allocateSocksPort(state.vpnProfiles),
+    };
+    await patchState({ vpnProfiles: [...state.vpnProfiles, profile] });
+    return { ok: true, profile, info: saved.info };
+  },
+
   async 'delete-vpn'(payload) {
     const state = await getState();
     const inUse = [
@@ -54,6 +88,12 @@ export const vpnActions = {
 
     await bridge.send('stop-tunnel', { profileId: payload.id }).catch(() => {});
     dropTunnel(payload.id);
+
+    // File .ovpn chứa private key inline — xoá profile mà để lại file là để rơi secret
+    const target = state.vpnProfiles.find((p) => p.id === payload.id);
+    if (target?.mode === 'ovpn') {
+      await bridge.send('delete-ovpn', { id: payload.id }).catch(() => {});
+    }
     await patchState({
       vpnProfiles: state.vpnProfiles.filter((p) => p.id !== payload.id),
       domains: state.domains.map((d) =>

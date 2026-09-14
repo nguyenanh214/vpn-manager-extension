@@ -3,53 +3,67 @@
 # In marker VPNMGR_READY ra stdout để native host biết tunnel đã sẵn sàng.
 set -eu
 
-: "${VPN_GATEWAY:?VPN_GATEWAY required}"
-: "${VPN_CA:?VPN_CA required}"
+# Chế độ file: dùng thẳng .ovpn user import. Chế độ manual: sinh config từ env.
+if [ -z "${VPN_CONFIG_FILE:-}" ]; then
+  : "${VPN_GATEWAY:?VPN_GATEWAY required}"
+  : "${VPN_CA:?VPN_CA required}"
+fi
 : "${SOCKS_PORT:=1080}"
 : "${VPN_PROTO:=udp}"
 : "${READY_TIMEOUT:=45}"
 
 CONF=/tmp/client.ovpn
-REMOTE_HOST=$(echo "$VPN_GATEWAY" | cut -d: -f1)
+REMOTE_HOST=$(echo "${VPN_GATEWAY:-}" | cut -d: -f1)
 REMOTE_PORT=$(echo "$VPN_GATEWAY" | cut -d: -f2 -s)
 [ -n "$REMOTE_PORT" ] || REMOTE_PORT=1194
 
-emit() { printf '%s\n' "$1" >> "$CONF"; }
-emit_if() { [ -n "$2" ] || return 0; emit "$1 $2"; }
+if [ -n "${VPN_CONFIG_FILE:-}" ]; then
+  # File .ovpn của user là nguồn sự thật duy nhất. Không parse rồi dựng lại vì file
+  # có thể chứa directive lạ (vd ignore-unknown-option) mà dựng lại sẽ làm mất.
+  if [ ! -r "$VPN_CONFIG_FILE" ]; then
+    echo "[vpnmgr] LỖI: không đọc được $VPN_CONFIG_FILE"
+    exit 1
+  fi
+  CONF="$VPN_CONFIG_FILE"
+  echo "[vpnmgr] dùng file .ovpn do user import: $CONF"
+else
+  emit() { printf '%s\n' "$1" >> "$CONF"; }
+  emit_if() { [ -n "$2" ] || return 0; emit "$1 $2"; }
 
-: > "$CONF"
-emit "client"
-emit "dev tun"
-emit "proto $VPN_PROTO"
-emit "remote $REMOTE_HOST $REMOTE_PORT"
-emit "resolv-retry infinite"
-emit "nobind"
-emit "persist-key"
-emit "persist-tun"
-emit "remote-cert-tls server"
-# Báo cho server biết ngay khi client thoát, thay vì để session treo tới ping-restart.
-# Không có nó, dựng lại container sẽ tự đụng chính session cũ của mình (server này
-# không bật duplicate-cn) và cả hai bên cùng hỏng.
-if [ "$VPN_PROTO" = "udp" ]; then emit "explicit-exit-notify 1"; fi
-# Server push ping-restart 120 -> bị đá thì im lặng 2 phút mới nhận ra.
-# Ép xuống 30s để tunnel tự hồi nhanh.
-emit "pull-filter ignore \"ping-restart\""
-emit "ping-restart 30"
-emit "verb 3"
-emit "ca $VPN_CA"
-emit_if "cert" "${VPN_CERT:-}"
-emit_if "key" "${VPN_KEY:-}"
-emit_if "tls-crypt" "${VPN_TLS_CRYPT:-}"
-emit_if "auth" "${VPN_AUTH:-}"
-emit_if "tls-version-min" "${VPN_TLS_VERSION_MIN:-}"
-if [ -n "${VPN_TLS_AUTH:-}" ]; then emit "tls-auth $VPN_TLS_AUTH 1"; fi
-if [ -n "${VPN_CIPHER:-}" ]; then
-  emit "data-ciphers $VPN_CIPHER:AES-256-GCM:AES-128-GCM"
-  emit "data-ciphers-fallback $VPN_CIPHER"
+  : > "$CONF"
+  emit "client"
+  emit "dev tun"
+  emit "proto $VPN_PROTO"
+  emit "remote $REMOTE_HOST $REMOTE_PORT"
+  emit "resolv-retry infinite"
+  emit "nobind"
+  emit "persist-key"
+  emit "persist-tun"
+  emit "remote-cert-tls server"
+  # Báo cho server biết ngay khi client thoát, thay vì để session treo tới ping-restart.
+  # Không có nó, dựng lại container sẽ tự đụng chính session cũ của mình (server này
+  # không bật duplicate-cn) và cả hai bên cùng hỏng.
+  if [ "$VPN_PROTO" = "udp" ]; then emit "explicit-exit-notify 1"; fi
+  # Server push ping-restart 120 -> bị đá thì im lặng 2 phút mới nhận ra.
+  # Ép xuống 30s để tunnel tự hồi nhanh.
+  emit "pull-filter ignore \"ping-restart\""
+  emit "ping-restart 30"
+  emit "verb 3"
+  emit "ca $VPN_CA"
+  emit_if "cert" "${VPN_CERT:-}"
+  emit_if "key" "${VPN_KEY:-}"
+  emit_if "tls-crypt" "${VPN_TLS_CRYPT:-}"
+  emit_if "auth" "${VPN_AUTH:-}"
+  emit_if "tls-version-min" "${VPN_TLS_VERSION_MIN:-}"
+  if [ -n "${VPN_TLS_AUTH:-}" ]; then emit "tls-auth $VPN_TLS_AUTH 1"; fi
+  if [ -n "${VPN_CIPHER:-}" ]; then
+    emit "data-ciphers $VPN_CIPHER:AES-256-GCM:AES-128-GCM"
+    emit "data-ciphers-fallback $VPN_CIPHER"
+  fi
+  if [ -n "${VPN_VERIFY_X509:-}" ]; then emit "verify-x509-name $VPN_VERIFY_X509 name"; fi
+
+  echo "[vpnmgr] config sinh xong, remote=$REMOTE_HOST:$REMOTE_PORT proto=$VPN_PROTO"
 fi
-if [ -n "${VPN_VERIFY_X509:-}" ]; then emit "verify-x509-name $VPN_VERIFY_X509 name"; fi
-
-echo "[vpnmgr] config sinh xong, remote=$REMOTE_HOST:$REMOTE_PORT proto=$VPN_PROTO"
 
 # VPN_FORWARDS = "13306:10.8.0.20:3306,15432:db.local:5432"
 # Mỗi mục mở một cổng TCP trong container, chuyển tiếp qua tunnel tới đích.
@@ -146,7 +160,18 @@ cleanup() {
 }
 trap cleanup TERM INT
 
-openvpn --config "$CONF" &
+# Chế độ manual đã nhúng sẵn các override vào config. Chế độ file thì file là của
+# user, không sửa nội dung — truyền override qua tham số dòng lệnh.
+set -- --config "$CONF"
+if [ -n "${VPN_CONFIG_FILE:-}" ]; then
+  set -- "$@" --pull-filter ignore "ping-restart" --ping-restart 30
+  # explicit-exit-notify chỉ hợp lệ với UDP; thêm vào lúc TCP là OpenVPN báo lỗi
+  if [ "${VPN_PROTO:-udp}" = "udp" ]; then
+    set -- "$@" --explicit-exit-notify 1
+  fi
+fi
+
+openvpn "$@" &
 OVPN_PID=$!
 
 # Chờ tun0 có địa chỉ IP -> tunnel thực sự up

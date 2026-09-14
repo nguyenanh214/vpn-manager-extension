@@ -1,6 +1,6 @@
 # Phase 02 — Import file `.ovpn`
 
-**Ưu tiên:** Cao · **Trạng thái:** ⬜ Chưa làm · **Verify:** Linux, tự động
+**Ưu tiên:** Cao · **Trạng thái:** ✅ Xong (2026-09-14) · **Verify:** Linux, tự động
 **Phụ thuộc:** [Phase 01](phase-01-docker-cp.md)
 
 Liên quan: [plan.md](plan.md) · [tab-vpns.js](../../extension/popup/tab-vpns.js)
@@ -131,19 +131,19 @@ Sửa:
 
 ## Todo
 
-- [ ] Tạo fixture test **đã thay key giả** từ file mẫu; không đưa file thật của user
+- [x] Tạo fixture test **đã thay key giả** từ file mẫu; không đưa file thật của user
       vào repo (đã bị `.gitignore` chặn, giữ nguyên như vậy)
-- [ ] `ovpn-parser.js` xử lý `remote host port [proto]`, phát hiện khối inline
-- [ ] Không chèn `data-ciphers`/`auth` ở chế độ file — giữ nguyên nội dung
-- [ ] `ovpn-store.js` ghi 0600, có test kiểm tra quyền file
-- [ ] Action `save-ovpn` / `delete-ovpn`
-- [ ] UI nút import + báo lỗi parser
-- [ ] `container-spec` nhánh ovpn, signature băm nội dung file
-- [ ] `entrypoint.sh` chế độ config file, `explicit-exit-notify` chỉ khi udp
-- [ ] Test: import → bật domain → traffic ra IP VPN
-- [ ] Test: xoá profile ovpn → file config biến mất khỏi đĩa
-- [ ] Test: file có `auth-user-pass` bị từ chối, không ghi file nào
-- [ ] Luồng điền tay vẫn pass 18 test forward + 19 test popup
+- [x] `ovpn-parser.js` xử lý `remote host port [proto]`, phát hiện khối inline
+- [x] Không chèn `data-ciphers`/`auth` ở chế độ file — giữ nguyên nội dung
+- [x] `ovpn-store.js` ghi 0600, có test kiểm tra quyền file
+- [x] Action `save-ovpn` / `delete-ovpn`
+- [x] UI nút import + báo lỗi parser
+- [x] `container-spec` nhánh ovpn, signature băm nội dung file
+- [x] `entrypoint.sh` chế độ config file, `explicit-exit-notify` chỉ khi udp
+- [x] Test: import → bật domain → traffic ra IP VPN
+- [x] Test: xoá profile ovpn → file config biến mất khỏi đĩa
+- [x] Test: file có `auth-user-pass` bị từ chối, không ghi file nào
+- [x] Luồng điền tay vẫn pass 18 test forward + 19 test popup
 
 ## Tiêu chí hoàn thành
 
@@ -173,3 +173,25 @@ Sửa:
 ## Tiếp theo
 
 Chờ file `.ovpn` mẫu của user để chốt danh sách directive mà parser cần nhận diện.
+
+## Kết quả (2026-09-14)
+
+22 test mới, tổng 82 test pass.
+
+- Parser đọc đúng file mẫu thật: `remote vpn.example.net 1194 udp` (dạng 3 tham số),
+  4 khối inline, không có directive chưa hỗ trợ
+- File trỏ cert bên ngoài và file cần `auth-user-pass` bị từ chối **kèm lý do cụ thể**,
+  và không tạo profile nào
+- File lưu ở `~/.config/vpn-manager/profiles/<id>.ovpn` quyền `0600`
+- `chrome.storage` không chứa chuỗi `BEGIN` nào — nội dung certificate không lọt vào
+- Xoá profile thì file bị xoá theo, không để lại secret mồ côi
+- Kết nối thật: container log `dùng file .ovpn do user import`, tunnel lên,
+  traffic thoát `203.0.113.10` trong khi IP thật `198.51.100.20`
+
+**Ghi chú về file mẫu:** `vpn.example.net` không còn phân giải được (file đã lỗi thời),
+nên test kết nối thật dùng file `.ovpn` sinh tại chỗ từ cert đang dùng được trên máy.
+File đó chứa private key thật nên nằm ngoài repo; fixture trong `tests/fixtures/` đã
+thay toàn bộ khối key bằng nội dung giả.
+
+**Lệch nhỏ so với plan:** dùng modal có ô nhập tên thay cho `prompt()`, vì `prompt()`
+không đáng tin trong popup của extension.

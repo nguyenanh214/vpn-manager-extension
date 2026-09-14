@@ -1,6 +1,7 @@
 // Tab phụ: quản lý VPN profile, import từ NetworkManager, test kết nối.
 
 import { call, el, clear, flashError, showModal, closeModal, TUNNEL_LABEL } from './ui-helpers.js';
+import { setupOvpnImport } from './ovpn-import.js';
 
 const FORM_FIELDS = ['name', 'gateway', 'ca', 'cert', 'key', 'tlsCrypt', 'cipher', 'auth'];
 
@@ -49,7 +50,9 @@ function vpnRow(profile, tunnels, errorSlot) {
       el('div', { class: 'row-title' }, [
         el('span', { class: `dot ${tunnel.status}` }),
         el('span', { class: 'row-name', title: profile.name, text: profile.name }),
-        profile.source === 'nm' ? el('span', { class: 'badge', text: 'NM' }) : null,
+        profile.mode === 'ovpn'
+          ? el('span', { class: 'badge', text: '.ovpn' })
+          : (profile.source === 'nm' ? el('span', { class: 'badge', text: 'NM' }) : null),
       ]),
       el('div', { class: 'row-sub', text: `${profile.gateway} · SOCKS ${profile.socksPort} · ${TUNNEL_LABEL[tunnel.status]}` }),
       tunnel.error ? el('div', { class: 'row-sub error', text: tunnel.error }) : null,
@@ -129,6 +132,8 @@ export function setupVpnControls(getState) {
   const form = document.getElementById('form-add-vpn');
   const errorSlot = document.getElementById('vpn-error');
   const fieldOf = (name) => form.querySelector(`[data-field="${name}"]`);
+
+  setupOvpnImport(errorSlot, () => refresh());
 
   document.getElementById('btn-import-nm').addEventListener('click', async (e) => {
     e.target.disabled = true;

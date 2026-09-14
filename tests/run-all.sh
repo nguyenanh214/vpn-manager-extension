@@ -4,7 +4,7 @@
 set -uo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
-SUITES="${*:-popup routing forwards lifecycle host-registry}"
+SUITES="${*:-popup ovpn routing forwards lifecycle host-registry}"
 total_fail=0
 
 for suite in $SUITES; do
