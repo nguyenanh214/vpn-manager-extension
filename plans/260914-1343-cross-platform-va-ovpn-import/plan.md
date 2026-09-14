@@ -36,9 +36,12 @@ không phải thiết kế lại phần nào.
 
 Các lệnh cần chạy trên Windows: [windows-smoke-test.md](windows-smoke-test.md) — **đã chạy, pass hết**
 
-Bước tiếp theo trên Windows: [windows-test-handover.md](windows-test-handover.md)
+Runbook Windows: [windows-test-handover.md](windows-test-handover.md) — **đã chạy xong
+2026-09-14**, sửa 4 lỗi, kết nối VPN thật thành công. Phần *cách debug* và *ràng buộc
+khi sửa* trong đó vẫn dùng lại được cho macOS.
 
-Máy dev là Linux. Phần macOS/Windows là code **chưa chạy thử** cho tới khi user test.
+Máy dev là Linux. Windows nay đã kiểm chứng trên máy thật; **macOS vẫn là code chưa
+chạy thử lần nào** — đó là việc tiếp theo.
 
 ## Phase
 
@@ -48,7 +51,7 @@ Máy dev là Linux. Phần macOS/Windows là code **chưa chạy thử** cho t�
 | 02 | [Import file .ovpn](phase-02-ovpn-import.md) | ✅ Xong | Linux (82 test pass) |
 | 03 | [Trừu tượng hoá OS](phase-03-os-abstraction.md) | ✅ Xong | Linux (106 test pass) |
 | 04 | [Installer macOS](phase-04-installer-macos.md) | ✅ Code xong | ⬜ chờ user chạy trên macOS |
-| 05 | [Installer Windows](phase-05-installer-windows.md) | 🟡 Đã chạy thật, sửa 4 lỗi | 🟡 Windows 11 + PS 5.1 — installer/native host OK, còn chờ server VPN để kiểm traffic |
+| 05 | [Installer Windows](phase-05-installer-windows.md) | ✅ Xong, sửa 4 lỗi | ✅ Windows 11 + PS 5.1 — cài đặt, native host và kết nối VPN đều chạy thật |
 | 06 | [Tài liệu + checklist](phase-06-docs.md) | ⬜ Chưa làm | Đọc lại |
 
 ## Phụ thuộc

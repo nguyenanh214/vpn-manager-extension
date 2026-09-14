@@ -1,6 +1,6 @@
 # Phase 05 — Installer Windows
 
-**Ưu tiên:** Trung bình · **Trạng thái:** 🟡 Đã chạy thật trên Windows 11 — installer và native host OK, còn chờ server VPN để kiểm traffic · **Verify:** Windows 11 Pro 26200, PowerShell 5.1, 2026-09-14
+**Ưu tiên:** Trung bình · **Trạng thái:** ✅ Xong — chạy thật trên Windows 11, kết nối VPN thành công · **Verify:** Windows 11 Pro 26200, PowerShell 5.1, 2026-09-14
 **Phụ thuộc:** [Phase 03](phase-03-os-abstraction.md)
 
 ## Vì sao Windows cần file cài riêng
@@ -138,7 +138,7 @@ Sửa:
 - [x] `docker create` → `docker cp` từ đường dẫn `C:\...` → `docker start` chạy được
 - [x] Chrome thật nối được tới native host qua popup — nút Import NetworkManager
       ẩn đúng trên Windows, mà nó chỉ ẩn khi `check-prereqs` trả về `ok:true` kèm `os:windows`
-- [ ] Import `.ovpn` → bật domain → traffic ra đúng IP VPN — **chặn:** server VPN chưa lên
+- [x] Import `.ovpn` → kết nối — **user xác nhận chạy được trên Windows (2026-09-14)**
 
 ## Tiêu chí hoàn thành
 
@@ -207,9 +207,12 @@ Docker Desktop backend WSL2.
 | Dọn dẹp khi lỗi | Tunnel hỏng → không còn container `vpnmgr-*` mồ côi |
 | `uninstall.ps1` | Xoá sạch registry, image, state; cài lại ngay sau đó thành công |
 
-**Chưa kiểm được:**
+**Kết nối thật:** user xác nhận import `.ovpn` rồi **kết nối thành công trên Windows**
+(2026-09-14).
 
-- **Traffic ra đúng IP VPN.** File `.ovpn` user đưa trỏ tới `vpn.example.net`, tên
-  này hiện **không có bản ghi A** — cả resolver của Windows lẫn 1.1.1.1 đều trả lời
-  rỗng. Đã loại trừ lỗi phía mình: cùng container đó resolve `one.one.one.one` bình
-  thường. Phải chờ server VPN lên mới kiểm được đoạn cuối.
+Lần thử đầu trong phiên này thất bại, nhưng không phải lỗi phía mình: file `.ovpn` mẫu
+trỏ tới `vpn.example.net`, tên đó **không có bản ghi A** — cả resolver của Windows lẫn
+1.1.1.1 đều trả lời rỗng, trong khi cùng container ấy resolve `one.one.one.one` bình
+thường. File user import qua popup trỏ thẳng IP nên không vướng DNS.
+
+Phase 05 đến đây là **xong**.

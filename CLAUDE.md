@@ -7,25 +7,29 @@ chạy OpenVPN client + SOCKS5 + port-forward.
 
 Kiến trúc đầy đủ: [docs/system-architecture.md](docs/system-architecture.md)
 
-## 🔴 Việc tiếp theo, nếu bạn đang chạy trên WINDOWS
+## 🔴 Việc tiếp theo, nếu bạn đang chạy trên macOS
 
-Installer Windows **đã chạy thật lần đầu ngày 2026-09-14** và đã sửa 4 lỗi chặn
-(xem [docs/project-changelog.md](docs/project-changelog.md)). Máy Windows này hiện
-đã cài xong, extension id `jjjlompfphjoakhblebcifjpliigghhf`.
+**Nhiệm vụ: test installer macOS lần đầu và sửa lỗi.** Giống hệt tình thế của Windows
+một hôm trước: code viết từ máy Linux, **chưa chạy trên macOS thật lần nào**.
 
-Chrome thật đã nối được tới native host qua popup: nút Import NetworkManager ẩn đúng
-trên Windows, mà nó chỉ ẩn khi `check-prereqs` về tới popup kèm `os` — `call()` hỏng
-thì trả `ok:false` và nút vẫn hiện.
+👉 [plans/.../phase-04-installer-macos.md](plans/260914-1343-cross-platform-va-ovpn-import/phase-04-installer-macos.md)
 
-Còn đúng một việc chưa kiểm được, **không phải vì code mà vì thiếu điều kiện**:
+Luồng: `scripts/install-macos.sh <extension-id>` → load unpacked `extension/` →
+Reload extension → import `.ovpn` → bật domain → kiểm IP. Gỡ ra làm lại bằng
+`scripts/uninstall-macos.sh`.
 
-- **Traffic ra đúng IP VPN.** File `.ovpn` mẫu trỏ `vpn.example.net`, tên này chưa
-  có bản ghi A — cả resolver Windows lẫn 1.1.1.1 đều trả lời rỗng. Đã loại trừ lỗi
-  phía mình: cùng container đó resolve `one.one.one.one` bình thường. Cần server VPN
-  lên mới kiểm được.
+Đọc [windows-test-handover.md](plans/260914-1343-cross-platform-va-ovpn-import/windows-test-handover.md)
+trước — phần **cách debug** và **ràng buộc khi sửa** áp dụng nguyên cho macOS, chỉ
+khác chỗ đăng ký native host (macOS thả file vào
+`~/Library/Application Support/<browser>/NativeMessagingHosts/`, không phải registry).
 
-Runbook gốc (vẫn hữu ích cho phần debug và ràng buộc khi sửa):
-[plans/260914-1343-cross-platform-va-ovpn-import/windows-test-handover.md](plans/260914-1343-cross-platform-va-ovpn-import/windows-test-handover.md)
+Bài học Windows để lại, đáng ngờ ở macOS: bash mặc định của macOS là **3.2** (từ 2007)
+— `install-macos.sh` đã bỏ mảng vì `DOCKER_ENV=()` + `set -u` vỡ ở đó, nhưng chưa chạy
+thật lần nào. Và đừng tin `[ -c /dev/net/tun ]`: Docker chạy trong VM nên host macOS
+không có device đó, phải thử `ip tuntap add` **bên trong container**.
+
+Windows đã xong, không cần làm gì thêm ở đó. Máy Windows đang cài sẵn, extension id
+`jjjlompfphjoakhblebcifjpliigghhf`.
 
 ## Trạng thái
 
@@ -35,7 +39,7 @@ Runbook gốc (vẫn hữu ích cho phần debug và ràng buộc khi sửa):
 | 02 Import file `.ovpn` | ✅ Linux |
 | 03 Trừu tượng hoá OS | ✅ Linux |
 | 04 Installer macOS | 🟡 code xong, chưa chạy trên macOS thật |
-| 05 Installer Windows | 🟡 đã chạy thật, sửa 4 lỗi; còn chờ server VPN |
+| 05 Installer Windows | ✅ Windows 11 + PS 5.1, kết nối thật chạy được |
 | 06 Tài liệu | ⬜ chưa làm |
 
 Kế hoạch: [plans/260914-1343-cross-platform-va-ovpn-import/plan.md](plans/260914-1343-cross-platform-va-ovpn-import/plan.md)
@@ -80,3 +84,16 @@ Hai bộ không cần trình duyệt lẫn Docker, chạy được ở bất c�
 - **Server VPN không bật `duplicate-cn`.** Hai client cùng certificate sẽ đá nhau; bên
   bị đá vẫn tưởng mình đang kết nối tới tận `ping-restart`. Đừng chạy hai tunnel cùng
   cert song song khi test.
+- **PowerShell 5.1 đọc `.ps1` không BOM bằng codepage ANSI**, không đoán UTF-8. Chữ
+  tiếng Việt vỡ thành byte mà parser hiểu nhầm là dấu nháy, script chết ngay lúc parse
+  với lỗi trỏ vào những dòng hoàn toàn bình thường. PS 7 không dính, nên test bằng
+  `pwsh` sẽ không thấy. Mọi `.ps1` trong repo phải giữ BOM.
+- **PS 5.1 bọc từng dòng stderr của native exe thành `ErrorRecord`.** Gặp
+  `$ErrorActionPreference = 'Stop'` thì một dòng tiến trình bình thường của `docker`
+  cũng giết script dù exit code là 0. Mọi lệnh native trong `.ps1` phải đi qua
+  `Invoke-Native`.
+- **Bộ đọc JSON của Chrome từ chối BOM.** Manifest native messaging ghi bằng
+  `Set-Content -Encoding UTF8` (PS 5.1 luôn kèm BOM) làm Chrome báo "Specified native
+  messaging host not found" — triệu chứng không gợi gì tới encoding.
+- **Spawn native host là hẹn giờ dọn tunnel.** Host đóng stdin sẽ chờ grace 15s rồi
+  `stopAll()`. Đừng spawn host để thử nghiệm khi user đang có tunnel chạy thật.

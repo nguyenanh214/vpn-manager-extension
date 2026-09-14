@@ -75,8 +75,13 @@ khác với những gì code viết từ máy Linux giả định.
 Đã kiểm chứng chạy thật sau khi sửa: cài → gỡ → cài lại trọn vẹn; registry Chrome và
 Edge đúng; native host trả lời `ping`/`check-prereqs` qua đúng giao thức khi bị spawn
 y như Chrome spawn; `docker cp` từ đường dẫn Windows vào container chạy được; `icacls`
-khoá file `.ovpn` về đúng một user. Chưa kiểm được đoạn cuối (traffic ra IP VPN) vì
-server VPN trong file `.ovpn` mẫu chưa có bản ghi DNS.
+khoá file `.ovpn` về đúng một user; Chrome thật nối được tới host qua popup.
+
+**Import `.ovpn` rồi kết nối chạy thành công trên Windows** — user xác nhận. Lần thử
+đầu thất bại vì file `.ovpn` mẫu trỏ tới một tên miền không có bản ghi A, không phải
+lỗi của extension: cùng container ấy resolve tên khác bình thường.
+
+Phase 05 xong. Còn lại macOS, vẫn là code chưa chạy thử lần nào.
 
 ## 1.6.0 — 2026-09-14
 
