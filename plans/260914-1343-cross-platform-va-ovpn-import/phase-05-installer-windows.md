@@ -136,7 +136,8 @@ Sửa:
 - [x] `uninstall.ps1` xoá sạch registry, image, state; cài lại được ngay sau đó
 - [x] Native host trả lời đúng giao thức khi bị spawn như Chrome spawn
 - [x] `docker create` → `docker cp` từ đường dẫn `C:\...` → `docker start` chạy được
-- [ ] Chrome thật nối được tới native host qua popup — **chưa kiểm**
+- [x] Chrome thật nối được tới native host qua popup — nút Import NetworkManager
+      ẩn đúng trên Windows, mà nó chỉ ẩn khi `check-prereqs` trả về `ok:true` kèm `os:windows`
 - [ ] Import `.ovpn` → bật domain → traffic ra đúng IP VPN — **chặn:** server VPN chưa lên
 
 ## Tiêu chí hoàn thành
@@ -202,13 +203,12 @@ Docker Desktop backend WSL2.
 | ACL file `.ovpn` | `icacls` trả đúng một ACE `Admin\Andy:(R,W)`, kế thừa đã gỡ |
 | Import `.ovpn` thật | `save-ovpn` ghi vào `%APPDATA%pn-manager\profiles\`, parser lấy đúng remote/proto/khối inline |
 | `docker cp` từ đường dẫn Windows | Container nhận `/config/client.ovpn`, OpenVPN đọc được |
+| Chrome thật nối được tới native host | Popup ẩn nút Import NetworkManager — chỉ xảy ra khi `check-prereqs` về tới popup với `os:windows`; `call()` hỏng thì nút vẫn hiện |
 | Dọn dẹp khi lỗi | Tunnel hỏng → không còn container `vpnmgr-*` mồ côi |
 | `uninstall.ps1` | Xoá sạch registry, image, state; cài lại ngay sau đó thành công |
 
 **Chưa kiểm được:**
 
-- **Chrome thật nối tới native host qua popup.** Toàn bộ phía host đã chứng minh
-  đúng khi bị spawn giống hệt cách Chrome spawn, nhưng chưa bấm thử trên popup.
 - **Traffic ra đúng IP VPN.** File `.ovpn` user đưa trỏ tới `vpn.example.net`, tên
   này hiện **không có bản ghi A** — cả resolver của Windows lẫn 1.1.1.1 đều trả lời
   rỗng. Đã loại trừ lỗi phía mình: cùng container đó resolve `one.one.one.one` bình
