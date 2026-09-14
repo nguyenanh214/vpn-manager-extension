@@ -34,7 +34,9 @@ Toàn bộ kiến trúc phụ thuộc vào `--device /dev/net/tun` hoạt độn
 **Cả ba OS đều xác nhận tạo được interface tun.** Kiến trúc hiện tại dùng được,
 không phải thiết kế lại phần nào.
 
-Các lệnh cần chạy trên Windows: [windows-smoke-test.md](windows-smoke-test.md)
+Các lệnh cần chạy trên Windows: [windows-smoke-test.md](windows-smoke-test.md) — **đã chạy, pass hết**
+
+Bước tiếp theo trên Windows: [windows-test-handover.md](windows-test-handover.md)
 
 Máy dev là Linux. Phần macOS/Windows là code **chưa chạy thử** cho tới khi user test.
 
