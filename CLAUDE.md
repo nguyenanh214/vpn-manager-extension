@@ -13,14 +13,16 @@ Installer Windows **đã chạy thật lần đầu ngày 2026-09-14** và đã 
 (xem [docs/project-changelog.md](docs/project-changelog.md)). Máy Windows này hiện
 đã cài xong, extension id `jjjlompfphjoakhblebcifjpliigghhf`.
 
-Còn đúng hai việc chưa kiểm được, **không phải vì code mà vì thiếu điều kiện**:
+Chrome thật đã nối được tới native host qua popup: nút Import NetworkManager ẩn đúng
+trên Windows, mà nó chỉ ẩn khi `check-prereqs` về tới popup kèm `os` — `call()` hỏng
+thì trả `ok:false` và nút vẫn hiện.
 
-1. **Chrome thật nối tới native host qua popup.** Phía host đã chứng minh đúng khi bị
-   spawn y hệt cách Chrome spawn; chỉ còn bấm thử trên popup.
-2. **Traffic ra đúng IP VPN.** File `.ovpn` mẫu trỏ `vpn.example.net`, tên này chưa
-   có bản ghi A — cả resolver Windows lẫn 1.1.1.1 đều trả lời rỗng. Đã loại trừ lỗi
-   phía mình: cùng container đó resolve `one.one.one.one` bình thường. Cần server VPN
-   lên mới kiểm được.
+Còn đúng một việc chưa kiểm được, **không phải vì code mà vì thiếu điều kiện**:
+
+- **Traffic ra đúng IP VPN.** File `.ovpn` mẫu trỏ `vpn.example.net`, tên này chưa
+  có bản ghi A — cả resolver Windows lẫn 1.1.1.1 đều trả lời rỗng. Đã loại trừ lỗi
+  phía mình: cùng container đó resolve `one.one.one.one` bình thường. Cần server VPN
+  lên mới kiểm được.
 
 Runbook gốc (vẫn hữu ích cho phần debug và ràng buộc khi sửa):
 [plans/260914-1343-cross-platform-va-ovpn-import/windows-test-handover.md](plans/260914-1343-cross-platform-va-ovpn-import/windows-test-handover.md)
