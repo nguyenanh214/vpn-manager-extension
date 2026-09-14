@@ -1,4 +1,4 @@
-# Gỡ VPN Manager trên Windows: dừng tunnel, xoá registry, xoá image, xoá state.
+﻿# Gỡ VPN Manager trên Windows: dừng tunnel, xoá registry, xoá image, xoá state.
 #
 # Chạy bằng:
 #   powershell -ExecutionPolicy Bypass -File scripts\uninstall-windows.ps1
@@ -6,6 +6,12 @@
 # Viết cho Windows PowerShell 5.1. Không cần quyền Administrator.
 
 $ErrorActionPreference = 'Continue'
+
+# File nay PHAI luu kem BOM UTF-8: PowerShell 5.1 doc .ps1 khong BOM bang codepage
+# ANSI cua may, moi ky tu tieng Viet bien thanh rac va script hong ngay khi parse.
+# Console mac dinh lai la codepage 437/1258 nen con phai doi encoding dau ra nua,
+# khong thi thong bao in ra man hinh van la rac.
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 
 $HostName = 'com.andy.vpn_manager'
 $Image    = 'vpn-manager-socks'

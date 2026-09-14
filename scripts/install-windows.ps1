@@ -1,4 +1,4 @@
-# Cài đặt VPN Manager trên Windows.
+﻿# Cài đặt VPN Manager trên Windows.
 #
 # Chạy bằng:
 #   powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1 <extension-id>
@@ -14,6 +14,12 @@ param([string]$ExtensionId = '')
 
 $ErrorActionPreference = 'Stop'
 
+# File nay PHAI luu kem BOM UTF-8: PowerShell 5.1 doc .ps1 khong BOM bang codepage
+# ANSI cua may, moi ky tu tieng Viet bien thanh rac va script hong ngay khi parse.
+# Console mac dinh lai la codepage 437/1258 nen con phai doi encoding dau ra nua,
+# khong thi thong bao in ra man hinh van la rac.
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
 $RepoDir   = Split-Path -Parent $PSScriptRoot
 $HostName  = 'com.andy.vpn_manager'
 $HostBat   = Join-Path $RepoDir 'native-host\vpn-manager-host.bat'
@@ -27,6 +33,18 @@ function Write-Ok   { param($m) Write-Host "  $m" -ForegroundColor Green }
 function Write-Warn { param($m) Write-Host "  $m" -ForegroundColor Yellow }
 function Write-Err  { param($m) Write-Host "  $m" -ForegroundColor Red }
 function Fail { param($m) Write-Host "LỖI: $m" -ForegroundColor Red; exit 1 }
+
+# PowerShell 5.1 boc TUNG DONG stderr cua native exe thanh ErrorRecord; gap
+# $ErrorActionPreference = 'Stop' thi chi mot dong tien trinh cua docker cung lam
+# script chet oan du lenh tra ve exit code 0. Moi lenh native phai di qua day:
+# ham gop stderr vao output roi tra ve, nguoi goi tu kiem $LASTEXITCODE.
+function Invoke-Native {
+    param([Parameter(Mandatory)][string]$Exe, [string[]]$Arguments = @())
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try   { & $Exe @Arguments 2>&1 | ForEach-Object { "$_" } }
+    finally { $ErrorActionPreference = $prev }
+}
 
 # Khoá registry native messaging, kèm cách nhận biết trình duyệt có trên máy không.
 $Browsers = @(
@@ -60,7 +78,7 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-docker info *> $null
+Invoke-Native docker @('info') | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Err '✗ Docker đã cài nhưng daemon chưa chạy.'
     Write-Host '    Mở Docker Desktop, chờ icon cá voi ở khay hệ thống hết nhấp nháy,'
@@ -71,7 +89,9 @@ if ($LASTEXITCODE -ne 0) {
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Fail 'Chưa cài Node.js. Tải bản LTS tại https://nodejs.org (cần >= 18).'
 }
-$NodeMajor = [int](node -p 'process.versions.node.split(".")[0]')
+# Khong dung `node -p` de lay version: PowerShell boc tach dau nhay trong doi so
+# truoc khi giao cho node.exe, bieu thuc JS toi noi thi da hong cu phap.
+$NodeMajor = [int](((node -v) -replace '^v', '').Split('.')[0])
 if ($NodeMajor -lt 18) { Fail "Cần Node >= 18, đang có $(node -v)" }
 
 $NodeExe = (Get-Command node).Source
@@ -80,15 +100,17 @@ Write-Ok "✓ docker, node $(node -v)"
 # --- 2. Dựng image + kiểm TUN ---
 Write-Host ''
 Write-Host '[2/6] Dựng image Docker'
-docker build -t $Image (Join-Path $RepoDir 'docker') *> $null
+Invoke-Native docker @('build', '-t', $Image, (Join-Path $RepoDir 'docker')) | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail 'Dựng image thất bại. Chạy lại lệnh docker build để xem chi tiết.' }
 Write-Ok "✓ image $Image đã sẵn sàng"
 
 # Host Windows không có /dev/net/tun vì Docker chạy trong VM — phải thử trong container.
 Write-Host ''
 Write-Host '  Thử tạo interface tun trong container... ' -NoNewline
-$TunOut = docker run --rm --cap-add=NET_ADMIN --device /dev/net/tun --entrypoint sh $Image -c `
-    'ip tuntap add dev tunprobe mode tun && ip link del tunprobe && echo TUN_OK' 2>&1
+$TunOut = Invoke-Native docker @(
+    'run', '--rm', '--cap-add=NET_ADMIN', '--device', '/dev/net/tun',
+    '--entrypoint', 'sh', $Image, '-c',
+    'ip tuntap add dev tunprobe mode tun && ip link del tunprobe && echo TUN_OK')
 if ($TunOut -match 'TUN_OK') {
     Write-Host 'OK' -ForegroundColor Green
 } else {
@@ -129,7 +151,10 @@ $Template = Get-Content (Join-Path $RepoDir "native-host\$HostName.json.template
 # JSON đòi backslash phải escape, nên đường dẫn Windows thành \\
 $Template = $Template.Replace('__HOST_PATH__', $HostBat.Replace('\', '\\'))
 $Template = $Template.Replace('__EXTENSION_ID__', $ExtensionId)
-Set-Content -Path $ManifestPath -Value $Template -Encoding UTF8
+# `Set-Content -Encoding UTF8` cua PS 5.1 luon dinh kem BOM, ma bo doc JSON cua
+# Chrome tu choi BOM -> Chrome coi nhu khong co host nao. Phai ghi UTF-8 khong BOM.
+[System.IO.File]::WriteAllText($ManifestPath, $Template,
+    (New-Object System.Text.UTF8Encoding($false)))
 Write-Ok "✓ manifest: $ManifestPath"
 
 $Installed = 0
@@ -153,7 +178,8 @@ New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
 
 # Windows không có chmod: file kế thừa ACL thư mục cha nên mặc định user khác đọc được.
 # Thư mục này chứa file .ovpn có private key inline, phải khoá về đúng user hiện tại.
-icacls $StateDir /inheritance:r /grant:r "$($env:USERNAME):(OI)(CI)F" *> $null
+Invoke-Native icacls @($StateDir, '/inheritance:r', '/grant:r',
+    "$($env:USERNAME):(OI)(CI)F") | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Warn '! Không đặt được ACL cho thư mục state — file .ovpn có thể bị user khác trên máy đọc'
 } else {
