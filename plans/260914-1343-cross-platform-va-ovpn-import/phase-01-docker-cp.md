@@ -1,6 +1,6 @@
 # Phase 01 — `docker cp` thay `bind-mount`
 
-**Ưu tiên:** Cao (chặn mọi phase sau) · **Trạng thái:** ⬜ Chưa làm · **Verify:** Linux, tự động
+**Ưu tiên:** Cao (chặn mọi phase sau) · **Trạng thái:** ✅ Xong (2026-09-14) · **Verify:** Linux, tự động
 
 Liên quan: [plan.md](plan.md) · [docs/system-architecture.md](../../docs/system-architecture.md)
 
@@ -70,12 +70,12 @@ Không tạo file mới.
 
 ## Todo
 
-- [ ] `buildCreateArgs` bỏ `-v`, trả danh sách file cần cp
-- [ ] `signatureOf` băm nội dung cert
-- [ ] `start()` theo luồng create → cp → start, dọn sạch khi lỗi giữa chừng
-- [ ] `entrypoint.sh` đọc `/config`
-- [ ] Test: đổi NỘI DUNG cert (giữ nguyên tên file) phải làm container dựng lại
-- [ ] 60 test cũ pass
+- [x] `buildCreateArgs` bỏ `-v`, trả danh sách file cần cp
+- [x] `signatureOf` băm nội dung cert
+- [x] `start()` theo luồng create → cp → start, dọn sạch khi lỗi giữa chừng
+- [x] `entrypoint.sh` đọc `/config`
+- [x] Test: đổi NỘI DUNG cert (giữ nguyên tên file) phải làm container dựng lại
+- [x] 60 test cũ pass
 
 ## Tiêu chí hoàn thành
 
@@ -97,3 +97,15 @@ Không tạo file mới.
 Cert đi qua `docker cp` tức là qua Docker daemon (chạy bằng root). Tương đương
 bind-mount về mức độ tin cậy — daemon vốn đã đọc được mọi file. Không lưu thêm bản
 sao nào trên host.
+
+## Kết quả (2026-09-14)
+
+- Không còn `-v` nào: `buildCreateArgs` trả 0 tham số `-v`, 4 file đi bằng `docker cp`
+- Tunnel lên bình thường, traffic ra `203.0.113.10` trong khi IP thật `198.51.100.20`
+- Cert trong container giữ nguyên quyền `0600` (docker cp bảo toàn mode)
+- **Bug âm thầm đã chặn**: sửa nội dung cert làm signature đổi
+  `4ccb4cd30c38e7f2` → `f68a66a757981a4e`, container sẽ được dựng lại
+- 60/60 test pass
+
+`entrypoint.sh` không phải sửa — nó đọc đường dẫn từ biến env chứ không hardcode `/certs`.
+Thêm `RUN mkdir -p /config` vào Dockerfile vì `docker cp` cần thư mục đích tồn tại sẵn.

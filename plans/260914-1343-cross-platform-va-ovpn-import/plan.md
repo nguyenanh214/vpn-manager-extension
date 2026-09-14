@@ -42,7 +42,7 @@ Máy dev là Linux. Phần macOS/Windows là code **chưa chạy thử** cho t�
 
 | # | Phase | Trạng thái | Verify ở đâu |
 |---|---|---|---|
-| 01 | [docker cp thay bind-mount](phase-01-docker-cp.md) | ⬜ Chưa làm | Linux (tự động) |
+| 01 | [docker cp thay bind-mount](phase-01-docker-cp.md) | ✅ Xong | Linux (60 test pass) |
 | 02 | [Import file .ovpn](phase-02-ovpn-import.md) | ⬜ Chưa làm | Linux (tự động) |
 | 03 | [Trừu tượng hoá OS](phase-03-os-abstraction.md) | ⬜ Chưa làm | Linux + smoke test 3 OS |
 | 04 | [Installer macOS](phase-04-installer-macos.md) | ⬜ Chưa làm | macOS (user) |

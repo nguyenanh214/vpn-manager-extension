@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0 — 2026-09-14
+
+### Thay đổi
+- Cert vào container bằng `docker cp` thay vì bind-mount. Docker CLI tự đọc file bằng
+  API của OS nên không còn khâu dịch đường dẫn — điều kiện cần để chạy trên Windows.
+- `signatureOf` băm **nội dung** cert thay vì đường dẫn. Với bind-mount, sửa cert có
+  hiệu lực ngay; với `docker cp`, nội dung được sao lúc tạo container nên nếu vẫn băm
+  đường dẫn thì đổi cert sẽ không dựng lại container và tunnel chạy tiếp bằng cert cũ.
+- Thư mục cert trong container đổi `/certs` → `/config`.
+- Bộ test chuyển vào `tests/` trong repo, chạy bằng `tests/run-all.sh`.
+
+### Đã kiểm chứng
+- 60/60 test pass
+- Sửa nội dung cert (giữ nguyên tên file) làm signature đổi → container dựng lại
+- `docker cp` hoạt động với đường dẫn Windows (`C:\Users\...`), đã test trên máy thật
+
 ## 1.2.0 — 2026-09-14
 
 Xử lý tunnel chết im lặng. Triệu chứng người dùng gặp: Navicat connect lần đầu OK,

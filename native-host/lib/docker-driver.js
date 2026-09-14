@@ -4,7 +4,7 @@
 const { execFile } = require('child_process');
 const spec = require('./container-spec');
 
-const { IMAGE, NAME_PREFIX, containerName, signatureOf, buildRunArgs } = spec;
+const { IMAGE, NAME_PREFIX, containerName, signatureOf, buildCreateArgs } = spec;
 
 const READY_MARKER = 'VPNMGR_READY';
 const READY_TIMEOUT_MS = 45000;
@@ -63,12 +63,25 @@ async function start(profile) {
     await stop(profile.id);
   }
 
-  const { args, name, port } = buildRunArgs(profile);
+  const { args, name, port, copies } = buildCreateArgs(profile);
   await docker(['rm', '-f', name]).catch(() => {}); // dọn container chết còn sót
 
+  // create -> cp -> start. Container tạo xong mới sao file vào, rồi mới chạy, nên
+  // entrypoint chắc chắn thấy đủ cert. Nếu hỏng giữa chừng phải xoá container dở dang,
+  // không thì nó giữ cổng và lần start sau báo "port is already allocated".
   try {
     await docker(args, { timeoutMs: 60000 });
   } catch (err) {
+    throw new Error(`Không tạo được container: ${(err.stderr || err.message).trim()}`);
+  }
+
+  try {
+    for (const { src, dest } of copies) {
+      await docker(['cp', src, `${name}:${dest}`], { timeoutMs: 20000 });
+    }
+    await docker(['start', name], { timeoutMs: 30000 });
+  } catch (err) {
+    await docker(['rm', '-f', name]).catch(() => {});
     throw new Error(`Không khởi động được container: ${(err.stderr || err.message).trim()}`);
   }
 
@@ -176,5 +189,5 @@ async function imageExists() {
 
 module.exports = {
   start, stop, stopAll, isRunning, listRunning, getLogs, imageExists, health,
-  runningSignature, signatureOf, buildRunArgs, IMAGE, NAME_PREFIX,
+  runningSignature, signatureOf, buildCreateArgs, IMAGE, NAME_PREFIX,
 };

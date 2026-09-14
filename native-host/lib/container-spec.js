@@ -1,12 +1,19 @@
 'use strict';
-// Mô tả một container tunnel: tham số `docker run` và vân tay cấu hình.
+// Mô tả một container tunnel: tham số `docker create` và vân tay cấu hình.
 // Tách khỏi docker-driver để driver chỉ lo việc chạy lệnh docker.
+//
+// Cert được đưa vào bằng `docker cp` chứ không bind-mount. Lý do: bind-mount buộc
+// Docker phải dịch đường dẫn host sang đường dẫn trong VM, mà quy tắc dịch khác nhau
+// giữa Linux, macOS và Windows (C:\Users\... ). `docker cp` để CLI tự đọc file bằng
+// API của OS rồi đẩy qua stream — giống hệt nhau trên cả ba nền.
 
 const crypto = require('crypto');
+const fs = require('fs');
 const guard = require('./path-guard');
 
 const IMAGE = 'vpn-manager-socks';
 const NAME_PREFIX = 'vpnmgr-';
+const CONFIG_DIR = '/config';
 
 // Ánh xạ field profile -> tên file trong container + biến env OpenVPN
 const CERT_FIELDS = [
@@ -20,15 +27,33 @@ const CERT_FIELDS = [
 const containerName = (profileId) => NAME_PREFIX + guard.assertSafeProfileId(profileId);
 
 /**
- * Vân tay cấu hình. Đổi gateway, cert, cổng SOCKS hay danh sách forward đều làm
- * signature đổi -> start() biết phải dựng lại container thay vì dùng lại cái cũ.
+ * Băm NỘI DUNG file, không phải đường dẫn.
+ *
+ * Với bind-mount, container đọc thẳng file trên host nên sửa cert có hiệu lực ngay.
+ * Với `docker cp`, nội dung được sao vào container lúc tạo — nếu signature chỉ băm
+ * đường dẫn thì đổi cert sẽ KHÔNG dựng lại container và tunnel chạy tiếp bằng cert cũ
+ * mà không báo gì.
+ */
+function hashFile(filePath) {
+  return crypto.createHash('sha1').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+/**
+ * Vân tay cấu hình. Đổi gateway, nội dung cert, cổng SOCKS hay danh sách forward đều
+ * làm signature đổi -> start() biết phải dựng lại container thay vì dùng lại cái cũ.
  */
 function signatureOf(profile) {
+  const certHashes = {};
+  for (const [field] of CERT_FIELDS) {
+    if (!profile[field]) continue;
+    const real = guard.assertSafeCertPath(profile[field], field);
+    certHashes[field] = hashFile(real);
+  }
+
   const material = JSON.stringify({
     gateway: profile.gateway,
     socksPort: Number(profile.socksPort),
-    ca: profile.ca, cert: profile.cert, key: profile.key,
-    tlsCrypt: profile.tlsCrypt, tlsAuth: profile.tlsAuth,
+    certHashes,
     cipher: profile.cipher, auth: profile.auth,
     verifyX509: profile.verifyX509, tlsVersionMin: profile.tlsVersionMin,
     proto: profile.proto, dns: profile.dns,
@@ -39,14 +64,17 @@ function signatureOf(profile) {
   return crypto.createHash('sha1').update(material).digest('hex').slice(0, 16);
 }
 
-/** Build danh sách tham số `docker run` từ profile đã validate. */
-function buildRunArgs(profile) {
+/**
+ * Tham số `docker create` + danh sách file cần `docker cp` vào container sau đó.
+ * Container được tạo nhưng chưa start, nên entrypoint chắc chắn thấy đủ file.
+ */
+function buildCreateArgs(profile) {
   const name = containerName(profile.id);
   const port = guard.assertSafeSocksPort(profile.socksPort);
   const gateway = guard.assertSafeGateway(profile.gateway);
 
   const args = [
-    'run', '-d', '--name', name,
+    'create', '--name', name,
     '--cap-add=NET_ADMIN', '--device', '/dev/net/tun',
     '--dns', /^[0-9.]{7,15}$/.test(profile.dns || '') ? profile.dns : '1.1.1.1',
     '-p', `127.0.0.1:${port}:${port}`,
@@ -54,13 +82,15 @@ function buildRunArgs(profile) {
     '-e', `VPN_GATEWAY=${gateway}`,
   ];
 
+  if (!profile.ca) throw new Error('Thiếu CA certificate');
+
+  const copies = [];
   for (const [field, fileName, envVar] of CERT_FIELDS) {
     if (!profile[field]) continue;
     const real = guard.assertSafeCertPath(profile[field], field);
-    args.push('-v', `${real}:/certs/${fileName}:ro`);
-    args.push('-e', `${envVar}=/certs/${fileName}`);
+    copies.push({ src: real, dest: `${CONFIG_DIR}/${fileName}` });
+    args.push('-e', `${envVar}=${CONFIG_DIR}/${fileName}`);
   }
-  if (!profile.ca) throw new Error('Thiếu CA certificate');
 
   // Các tuỳ chọn chỉ nhận giá trị khớp whitelist, tránh chèn directive lạ vào .ovpn
   const opts = [
@@ -89,8 +119,10 @@ function buildRunArgs(profile) {
   // Nhãn signature cho phép phát hiện cấu hình đã đổi so với container đang chạy.
   args.push('--label', `vpnmgr.signature=${signatureOf(profile)}`);
   args.push(IMAGE);
-  return { args, name, port, rules };
+  return { args, name, port, rules, copies };
 }
 
-
-module.exports = { buildRunArgs, signatureOf, containerName, IMAGE, NAME_PREFIX };
+module.exports = {
+  buildCreateArgs, signatureOf, containerName,
+  IMAGE, NAME_PREFIX, CONFIG_DIR,
+};

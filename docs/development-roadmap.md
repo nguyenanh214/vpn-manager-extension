@@ -33,6 +33,7 @@ watchdog thoát khi mất `tun0`, `health()` kiểm tra thật + tự dựng l�
 killswitch chặn rò rỉ.
 
 ## Kiểm thử
+Bộ test nằm trong `tests/`, chạy bằng `tests/run-all.sh`.
 60 test tự động, chạy với Chrome khởi động bằng `env -i` (PATH tối thiểu, đúng
 môi trường Chrome thật spawn native host):
 
@@ -43,6 +44,12 @@ môi trường Chrome thật spawn native host):
 | forward | 18 | CRUD, validate, traffic thật qua forward, dựng lại khi đổi cổng |
 | UI/lifecycle | 9 | Giữ trạng thái popup, cuộn danh sách, tự tắt tunnel khi đóng Chrome |
 | multi-host | 9 | Nhiều trình duyệt: chỉ host cuối cùng mới được dọn tunnel |
+
+## Phase 8 — docker cp thay bind-mount — ✅ Hoàn thành
+Cert vào container bằng `docker create` → `docker cp` → `docker start`, bỏ hẳn
+bind-mount. Chuẩn bị cho Windows (không còn dịch đường dẫn `C:\Users\...`).
+`signatureOf` băm nội dung cert thay vì đường dẫn — nếu không, đổi cert sẽ không
+dựng lại container và tunnel chạy tiếp bằng cert cũ.
 
 ## Có thể làm tiếp (chưa cần)
 - Hỗ trợ OpenVPN xác thực user/password (hiện chỉ hỗ trợ certificate).
