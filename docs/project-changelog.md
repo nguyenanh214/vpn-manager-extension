@@ -2,6 +2,41 @@
 
 ## Chưa phát hành
 
+### Rò rỉ file .ovpn khi xoá VPN (2026-09-14)
+
+File `.ovpn` chứa private key inline, nên rơi một file là rơi nguyên một secret mà
+UI không còn chỗ nào trỏ tới để user xoá. Hai chỗ để rơi:
+
+- **`delete-vpn` nuốt lỗi.** Lời gọi `delete-ovpn` bọc trong `.catch(() => {})`, nên
+  khi native host không trả lời (Docker chưa chạy, host vừa bị kill) thì profile vẫn
+  biến mất khỏi `chrome.storage` còn file vẫn nằm trên đĩa — user tin là đã xoá xong.
+  Sửa: xoá file **trước** khi gỡ profile, hụt thì dừng hẳn và báo rõ, chưa đụng gì để
+  user thử lại.
+
+- **Không ai dọn file mồ côi.** `ovpn-store.list()` có sẵn kèm comment "dùng để dọn
+  file mồ côi" nhưng grep cả repo không chỗ nào gọi. Thêm `pruneExcept(keepIds)` và
+  action `prune-ovpn`, service worker gọi lúc `onStartup` và `onInstalled`. Bắt hai
+  trường hợp luồng xoá không lo được: `save-ovpn` ghi file xong thì service worker
+  MV3 bị Chrome kill trước khi kịp lưu profile, và storage của extension bị xoá sạch.
+
+`pruneExcept` **ném lỗi** khi thiếu `keepIds` thay vì coi như mảng rỗng — để mặc định
+rỗng ở một hàm xoá file nghĩa là xoá sạch config của user. Chỉ extension biết id nào
+còn sống, host chỉ nhìn thấy file, nên danh sách giữ lại bắt buộc do bên gọi đưa vào.
+Tên file không phải id hợp lệ thì bỏ qua chứ không xoá bừa.
+
+Bộ test mới `ovpn-store` (9 test) chạy trong sandbox bằng cách trỏ `APPDATA`/`HOME`
+vào thư mục tạm, kèm chốt chặn dừng ngay nếu sandbox không ăn. Không cần trình duyệt
+lẫn Docker nên chạy được trên cả ba OS.
+
+### Text danh sách VPN rỗng nhắc NetworkManager ngoài Linux (2026-09-14)
+
+Nút "Import từ NetworkManager" đã tự ẩn ngoài Linux từ Phase 03, nhưng text lúc danh
+sách rỗng vẫn bảo user "Import từ NetworkManager hoặc thêm thủ công" — trên Windows là
+chỉ tới một nút không tồn tại. Cho nó dùng chung đúng một nguồn dữ liệu với nút, giữ
+dạng tri-state: `check-prereqs` phải chạy `docker run` cho `tunProbe` nên mất một hai
+giây, trong lúc chờ mà đã nhắc NetworkManager rồi rút lại thì còn tệ hơn là không
+nhắc. Chưa biết OS thì chỉ nói tới hai đường có ở mọi OS.
+
 ### Windows — chạy installer lần đầu (2026-09-14)
 
 Bốn lỗi, tất cả đều chặn ngay từ những dòng đầu. Nguyên nhân gốc đều nằm ở chỗ

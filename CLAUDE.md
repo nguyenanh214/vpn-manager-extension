@@ -42,15 +42,18 @@ Kế hoạch: [plans/260914-1343-cross-platform-va-ovpn-import/plan.md](plans/26
 
 ## Kiểm thử
 
-106 test tự động, **chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
+115 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
 
 ```bash
 tests/run-all.sh              # tất cả
 tests/run-all.sh platform     # một bộ
 ```
 
-`platform` (24 test) không cần trình duyệt lẫn Docker — giả lập cả ba OS, chạy được ở
-bất cứ đâu có Node.
+Hai bộ không cần trình duyệt lẫn Docker, chạy được ở bất cứ đâu có Node:
+
+- `platform` (24 test) — giả lập cả ba OS
+- `ovpn-store` (9 test) — dọn file .ovpn mồ côi, chạy trong sandbox bằng cách trỏ
+  `APPDATA`/`HOME` vào thư mục tạm
 
 ## Quy ước
 
