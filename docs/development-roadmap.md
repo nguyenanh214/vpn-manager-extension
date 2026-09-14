@@ -34,7 +34,7 @@ killswitch chặn rò rỉ.
 
 ## Kiểm thử
 Bộ test nằm trong `tests/`, chạy bằng `tests/run-all.sh`.
-106 test tự động, chạy với Chrome khởi động bằng `env -i` (PATH tối thiểu, đúng
+122 test tự động, chạy với Chrome khởi động bằng `env -i` (PATH tối thiểu, đúng
 môi trường Chrome thật spawn native host):
 
 | Bộ | Số test | Phạm vi |
@@ -46,6 +46,7 @@ môi trường Chrome thật spawn native host):
 | multi-host | 9 | Nhiều trình duyệt: chỉ host cuối cùng mới được dọn tunnel |
 | ovpn | 22 | Parse, từ chối file chưa hỗ trợ, quyền 0600, kết nối thật bằng file |
 | platform | 24 | Đường dẫn và hành vi cho Linux/macOS/Windows, giả lập cả ba |
+| prune-ovpn | 7 | Dọn file .ovpn mồ côi qua native host thật, chặn payload thiếu keepIds |
 
 ## Phase 8 — docker cp thay bind-mount — ✅ Hoàn thành
 Cert vào container bằng `docker create` → `docker cp` → `docker start`, bỏ hẳn

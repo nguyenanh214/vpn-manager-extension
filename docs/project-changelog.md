@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.7.1 — 2026-09-15
+
+### Kiểm chứng
+- Chạy lại toàn bộ test trên Linux sau các thay đổi từ phiên Windows: **122/122 pass**.
+  Các file dùng chung bị đụng (`ovpn-store.js`, `vpn-manager-host.js`,
+  `extension/background/*`) không gây hồi quy.
+- Đóng gap phiên Windows để lại: `prune-ovpn` **đi qua native host thật** giờ đã có
+  test (7 test). Đây là đường code xoá file của user nên cần chốt chặn ở cả khâu nối
+  dây qua native messaging, không chỉ ở hàm `pruneExcept`:
+  - payload thiếu `keepIds` bị từ chối và **không xoá file nào**
+  - file còn profile trỏ tới được giữ, file mồ côi bị xoá
+  - tên file không phải id hợp lệ bị bỏ qua thay vì xoá bừa
+  - `keepIds: []` tường minh thì dọn sạch
+
+  Bộ test tự bỏ qua nếu đang có tunnel chạy, vì spawn native host là hẹn giờ 15s
+  rồi `stopAll()`.
+
 ## Chưa phát hành
 
 ### Rò rỉ file .ovpn khi xoá VPN (2026-09-14)
