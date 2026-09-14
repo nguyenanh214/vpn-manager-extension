@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+  <title>VPN Manager</title>
+</head>
+<body>
+  <div class="app">
+    <nav class="tabs" role="tablist">
+      <button class="tab" data-tab="domains" role="tab">Domains</button>
+      <button class="tab" data-tab="forwards" role="tab">Forward</button>
+      <button class="tab" data-tab="vpns" role="tab">VPN</button>
+    </nav>
+
+    <div id="banner" class="banner" hidden></div>
+
+    <main class="body">
+      <section id="panel-domains" class="panel">
+        <div id="domain-list" class="list"></div>
+        <div class="footer">
+          <button id="btn-add-domain" class="btn btn-primary btn-block">+ Thêm domain</button>
+          <form id="form-add-domain" class="add-form" hidden>
+            <input id="input-domain" class="input" type="text"
+                   placeholder="example.com" autocomplete="off" spellcheck="false">
+            <div class="add-form-row">
+              <button type="submit" class="btn btn-primary">Lưu</button>
+              <button type="button" id="btn-cancel-domain" class="btn">Huỷ</button>
+            </div>
+            <p id="domain-error" class="error" hidden></p>
+          </form>
+        </div>
+      </section>
+
+      <section id="panel-forwards" class="panel" hidden>
+        <div id="forward-list" class="list"></div>
+        <div class="footer">
+          <button id="btn-add-forward" class="btn btn-primary btn-block">+ Thêm forward</button>
+          <form id="form-add-forward" class="add-form" hidden>
+            <input class="input" data-fwd="label" placeholder="Tên gợi nhớ — vd MySQL nội bộ" autocomplete="off">
+            <div class="add-form-row">
+              <input class="input input-sm" data-fwd="localPort" placeholder="Cổng cục bộ" inputmode="numeric" autocomplete="off">
+              <input class="input input-sm" data-fwd="remoteHost" placeholder="Host đích trong VPN" autocomplete="off">
+              <input class="input input-sm" data-fwd="remotePort" placeholder="Cổng đích" inputmode="numeric" autocomplete="off">
+            </div>
+            <div class="add-form-row">
+              <button type="submit" class="btn btn-primary">Lưu</button>
+              <button type="button" id="btn-cancel-forward" class="btn">Huỷ</button>
+            </div>
+            <p id="forward-error" class="error" hidden></p>
+          </form>
+        </div>
+      </section>
+
+      <section id="panel-vpns" class="panel" hidden>
+        <div id="vpn-list" class="list"></div>
+        <div class="footer">
+          <div class="btn-row">
+            <button id="btn-import-nm" class="btn btn-primary">Import từ NetworkManager</button>
+            <button id="btn-add-vpn" class="btn">Thêm thủ công</button>
+          </div>
+          <form id="form-add-vpn" class="add-form" hidden>
+            <input class="input" data-field="name" placeholder="Tên VPN" autocomplete="off">
+            <input class="input" data-field="gateway" placeholder="Gateway — vd 203.0.113.10:1194" autocomplete="off">
+            <input class="input" data-field="ca" placeholder="CA certificate (.pem)" autocomplete="off">
+            <input class="input" data-field="cert" placeholder="User certificate (.pem)" autocomplete="off">
+            <input class="input" data-field="key" placeholder="User private key (.pem)" autocomplete="off">
+            <input class="input" data-field="tlsCrypt" placeholder="TLS crypt (.pem) — tuỳ chọn" autocomplete="off">
+            <div class="add-form-row">
+              <input class="input input-sm" data-field="cipher" placeholder="Cipher" autocomplete="off">
+              <input class="input input-sm" data-field="auth" placeholder="Auth" autocomplete="off">
+            </div>
+            <div class="add-form-row">
+              <button type="submit" class="btn btn-primary">Lưu</button>
+              <button type="button" id="btn-cancel-vpn" class="btn">Huỷ</button>
+            </div>
+            <p id="vpn-error" class="error" hidden></p>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-card">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modal-close" class="btn">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
