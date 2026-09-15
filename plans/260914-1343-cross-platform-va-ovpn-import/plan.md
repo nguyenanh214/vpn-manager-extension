@@ -52,7 +52,7 @@ chạy thử lần nào** — đó là việc tiếp theo.
 | 03 | [Trừu tượng hoá OS](phase-03-os-abstraction.md) | ✅ Xong | Linux (106 test pass) |
 | 04 | [Installer macOS](phase-04-installer-macos.md) | ✅ Code xong | ⬜ chờ user chạy trên macOS |
 | 05 | [Installer Windows](phase-05-installer-windows.md) | ✅ Xong, sửa 4 lỗi | ✅ Windows 11 + PS 5.1 — cài đặt, native host và kết nối VPN đều chạy thật |
-| 06 | [Tài liệu + checklist](phase-06-docs.md) | ⬜ Chưa làm | Đọc lại |
+| 06 | [Tài liệu + checklist](phase-06-docs.md) | 🟡 README xong | ⬜ còn checklist macOS |
 
 ## Phụ thuộc
 

@@ -24,44 +24,120 @@ Chi tiết: [docs/system-architecture.md](docs/system-architecture.md).
 
 ## Yêu cầu
 
-- Docker chạy được không cần sudo (`sudo usermod -aG docker $USER`, rồi đăng xuất vào lại)
-- Node >= 18, `curl`, `/dev/net/tun`
-- `nmcli` (tuỳ chọn — để import VPN có sẵn từ NetworkManager)
+| | Linux | macOS | Windows |
+|---|---|---|---|
+| Docker | chạy được không cần `sudo` | Docker Desktop | Docker Desktop |
+| Node | >= 18 | >= 18 | >= 18 |
+| Khác | `curl`, `/dev/net/tun` | — | PowerShell 5.1 (ship sẵn) |
+| Tuỳ chọn | `nmcli` để import từ NetworkManager | — | — |
+
+Trên Linux, thêm user vào group docker rồi đăng xuất/đăng nhập lại:
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+Trên macOS và Windows, Docker chạy trong VM nên **host không có `/dev/net/tun`** —
+đừng hoang mang nếu không thấy nó. Installer tự kiểm bằng cách tạo interface tun
+*bên trong container*, đó mới là phép thử đúng.
+
+> `brew install docker` trên macOS **chỉ cài CLI, không có daemon**. Cần
+> `brew install --cask docker` hoặc tải Docker Desktop từ docker.com.
 
 ## Cài đặt
 
-> Node cài qua **nvm** vẫn dùng được. Chrome spawn native host với PATH tối thiểu
-> nên không tự thấy nvm — `install.sh` ghi lại đường dẫn node tuyệt đối, và wrapper
-> `native-host/vpn-manager-host.sh` tự dò nếu đường dẫn đó đổi.
+Ba bước, giống nhau ở cả ba hệ điều hành — chỉ khác lệnh ở bước 2.
 
+**Bước 1.** Mở `chrome://extensions` → bật **Developer mode** → **Load unpacked** →
+chọn thư mục `extension/`. Copy **Extension ID** hiện trên thẻ.
+
+> ID sinh từ đường dẫn thư mục nên **khác nhau giữa các máy**. Đừng dùng lại ID của
+> máy khác.
+
+**Bước 2.** Chạy installer tương ứng, kèm ID vừa copy:
 
 ```bash
-# 1. Load extension
-#    chrome://extensions -> bật Developer mode -> Load unpacked -> chọn thư mục extension/
-#    Copy Extension ID hiện trên thẻ
+# Linux
+./scripts/install-linux.sh <extension-id>
 
-# 2. Chạy installer với ID vừa copy
-./scripts/install.sh <extension-id>
-
-# 3. Quay lại chrome://extensions, bấm Reload trên VPN Manager
+# macOS
+./scripts/install-macos.sh <extension-id>
 ```
 
-Sau khi cập nhật code (nhất là trong `docker/`), chạy lại `./scripts/install.sh <id>`
-để build lại image. Tunnel đang chạy sẽ dùng image mới ở lần dựng lại kế tiếp.
+```powershell
+# Windows — -ExecutionPolicy Bypass là bắt buộc, policy mặc định chặn .ps1
+powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1 <extension-id>
+```
 
-Gỡ: `./scripts/uninstall.sh`
+Installer chạy 6 bước: kiểm môi trường → dựng image → thử tạo interface tun trong
+container → nhận ID → đăng ký native host → thử spawn host đúng như Chrome sẽ spawn.
+Hỏng ở bước nào sẽ báo kèm hướng dẫn khắc phục cụ thể.
+
+**Bước 3.** Quay lại `chrome://extensions`, bấm **Reload** trên VPN Manager. Bắt buộc,
+service worker cần nạp lại.
+
+### Cập nhật code
+
+Chạy lại installer để dựng lại image, nhất là khi có thay đổi trong `docker/`. Tunnel
+đang chạy sẽ dùng image mới ở lần dựng lại kế tiếp.
+
+### Gỡ cài đặt
+
+```bash
+./scripts/uninstall-linux.sh      # hoặc uninstall-macos.sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\uninstall-windows.ps1
+```
+
+Gỡ sạch container, native host, image và thư mục state — kèm mọi file `.ovpn` đã import.
+
+### Node cài qua nvm
+
+Vẫn dùng được. Chrome spawn native host với PATH tối thiểu nên không tự thấy nvm;
+installer ghi lại đường dẫn node tuyệt đối, và wrapper (`vpn-manager-host.sh` trên
+Linux/macOS, `.bat` trên Windows) tự dò lại nếu đường dẫn đó đổi.
+
+### Đã kiểm chứng tới đâu
+
+| | Linux | macOS | Windows |
+|---|---|---|---|
+| Cài đặt | ✅ chạy thật | 🟡 chỉ chạy trong container bash 3.2 giả lập | ✅ Windows 11 + PS 5.1 |
+| Gỡ cài đặt | ✅ | 🟡 giả lập | ✅ |
+| Import `.ovpn`, bật domain | ✅ | ⬜ chưa chạy | ✅ |
+| Port-forward | ✅ | ⬜ chưa chạy | ✅ |
+
+macOS chưa ai chạy thật lần nào. Nếu bạn thử và gặp lỗi, mở issue — rất hữu ích.
 
 ## Sử dụng
 
-**Tab VPN** → `Import từ NetworkManager` để lấy sẵn gateway và đường dẫn cert từ
-các connection OpenVPN đang có. Hoặc `Thêm thủ công` rồi nhập gateway + đường dẫn
-tới các file `.pem`.
+### Thêm VPN
 
-Nhấn `Test` để kiểm tra: extension sẽ bật tunnel, so IP thoát với IP thật, và báo
-đỏ nếu traffic không thực sự đi qua VPN.
+Tab **VPN** có ba cách, xếp theo mức tiện:
 
-**Tab Domains** → `+ Thêm domain`, chọn VPN ở dropdown, gạt công tắc. Thêm
-`example.com` thì `www.example.com` và mọi subdomain khác cũng đi qua VPN.
+**`Import từ file .ovpn`** — nhanh nhất. Chọn file `.ovpn` do OpenVPN sinh ra, đặt tên,
+xong. File phải **tự chứa** (có sẵn các khối `<ca>`, `<cert>`, `<key>` bên trong);
+file trỏ tới cert bên ngoài hoặc cần username/password sẽ bị từ chối ngay lúc import
+kèm lý do cụ thể, thay vì để lỗi lộ ra lúc bật domain.
+
+**`Import từ NetworkManager`** — chỉ có trên **Linux**. Lấy sẵn gateway và đường dẫn
+cert từ các connection OpenVPN đang có. Nút này tự ẩn trên macOS và Windows.
+
+**`Thêm thủ công`** — nhập gateway và đường dẫn tới từng file `.pem`.
+
+Nhấn **`Test`** để kiểm: extension bật tunnel, so IP thoát với IP thật, báo đỏ nếu
+traffic không thực sự đi qua VPN.
+
+### Chọn domain đi qua VPN
+
+Tab **Domains** → `+ Thêm domain` → chọn VPN ở dropdown → gạt công tắc.
+
+Thêm `example.com` thì `www.example.com` và mọi subdomain cũng đi qua VPN. Dán cả URL
+đầy đủ cũng được, extension tự bóc lấy hostname.
+
+Chưa chọn VPN mà gạt công tắc thì bị chặn kèm nhắc "Chọn VPN trước" — không có chuyện
+bật nhầm rồi tưởng đang được bảo vệ.
 
 Tunnel tự tắt khi đóng Chrome.
 

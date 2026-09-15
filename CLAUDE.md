@@ -40,7 +40,7 @@ Windows đã xong, không cần làm gì thêm ở đó. Máy Windows đang cài
 | 03 Trừu tượng hoá OS | ✅ Linux |
 | 04 Installer macOS | 🟡 code xong, chưa chạy trên macOS thật |
 | 05 Installer Windows | ✅ Windows 11 + PS 5.1, kết nối thật chạy được |
-| 06 Tài liệu | ⬜ chưa làm |
+| 06 Tài liệu | 🟡 README + LICENSE + SECURITY xong |
 
 Kế hoạch: [plans/260914-1343-cross-platform-va-ovpn-import/plan.md](plans/260914-1343-cross-platform-va-ovpn-import/plan.md)
 

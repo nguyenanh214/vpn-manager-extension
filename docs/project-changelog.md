@@ -2,6 +2,30 @@
 
 ## 1.8.0 — 2026-09-15
 
+### Chuẩn bị publish
+- **LICENSE (GPL-3.0)**, sao chép nguyên văn. Không có license thì mặc định là
+  *all rights reserved* — code công khai nhưng về pháp lý không ai được fork.
+- **SECURITY.md** — mô hình đe doạ, tách rõ "bảo vệ được gì" và "KHÔNG bảo vệ được gì",
+  cách báo lỗ hổng riêng tư.
+- Thông báo giấy phép gắn vào 7 điểm vào chính, không rải khắp 35 file.
+
+### README viết lại cho ba hệ điều hành
+README đang hướng dẫn chạy `./scripts/install.sh` — **file đó không còn tồn tại** từ
+lúc tách installer theo OS. Ai clone về làm theo là hỏng ngay bước đầu.
+
+- Bảng yêu cầu theo từng OS. Bỏ `/dev/net/tun` khỏi yêu cầu chung: trên macOS/Windows
+  Docker chạy trong VM nên host không có device đó, ghi vào đây chỉ làm người ta hoang
+  mang. Kèm cảnh báo `brew install docker` chỉ cài CLI, không có daemon.
+- Ba bước cài chung cho mọi OS, chỉ khác lệnh ở bước 2. Nhắc `-ExecutionPolicy Bypass`
+  là bắt buộc trên Windows, và Extension ID khác nhau giữa các máy.
+- Bảng **đã kiểm chứng tới đâu**, trung thực từng ô: macOS vẫn ⬜ vì chưa ai chạy thật.
+- Mục Sử dụng viết lại: bổ sung **`Import từ file .ovpn`** — tính năng chính thêm ở
+  1.4.0 nhưng README chưa hề nhắc tới — và ghi rõ Import từ NetworkManager chỉ có
+  trên Linux.
+- Thêm mục cho người fork, chính sách đóng góp, và giấy phép.
+
+## 1.8.0 — 2026-09-15
+
 ### Test chạy được trên Windows, và tám lỗi của chính bộ test
 
 `prune-ovpn` và `host-registry` viết từ máy Linux, chưa chạy trên Windows lần nào.
