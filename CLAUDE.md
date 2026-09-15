@@ -54,6 +54,8 @@ không), chỉ bỏ phần so đúng IP:
 | `VPNMGR_TEST_OVPN` | `host-registry`, `traffic` — đường dẫn file `.ovpn` |
 | `VPNMGR_TEST_REMOTE` | `ovpn` — `"host port proto"`, thiếu thì bỏ qua mục kết nối thật |
 | `VPNMGR_TEST_EXIT_IP` | `ovpn`, `routing`, `forwards` — IP lối ra mong đợi |
+| `VPNMGR_TEST_CERT_PREFIX` | `ovpn` — tiền tố cert trong `~/.cert/nm-openvpn/` |
+| `VPNMGR_TEST_SERVER_CN` | `ovpn` — CN cert máy chủ cho `verify-x509-name` |
 
 Năm bộ không cần trình duyệt, chạy được trên cả ba OS — kể cả Windows. **69 test này
 đã chạy thật trên macOS**, pass hết. macOS cần `brew install coreutils` nếu muốn có

@@ -59,10 +59,14 @@ ok(!existsSync(saved), 'file .ovpn đã bị xoá khỏi đĩa, không để l�
 
 // Kết nối thật chỉ chạy được khi máy có cert dùng được. Sinh .ovpn tự chứa từ chúng,
 // giữ ngoài repo vì file này chứa private key thật.
+// Tiền tố tên file cert đi qua env: nó là tên profile VPN của người chạy test, không
+// có lý do gì nằm trong repo công khai. Ví dụ VPNMGR_TEST_CERT_PREFIX=MyVPN sẽ tìm
+// ~/.cert/nm-openvpn/MyVPN-{ca,cert,key,tls-crypt}.pem
+const CERT_PREFIX = process.env.VPNMGR_TEST_CERT_PREFIX || '';
 const liveCerts = ['ca', 'cert', 'key', 'tls-crypt']
-  .map((n) => join(CERTS, `MyVPN-${n === 'cert' ? 'cert' : n}.pem`));
-if (!liveCerts.every(existsSync)) {
-  console.log('\n--- 6. Kết nối thật: BỎ QUA (máy không có cert dùng được) ---');
+  .map((n) => join(CERTS, `${CERT_PREFIX}-${n}.pem`));
+if (!CERT_PREFIX || !liveCerts.every(existsSync)) {
+  console.log('\n--- 6. Kết nối thật: BỎ QUA (chưa đặt VPNMGR_TEST_CERT_PREFIX, hoặc không có cert) ---');
   done();
 }
 
@@ -81,7 +85,10 @@ const live = [
   'resolv-retry infinite', 'nobind', 'persist-key', 'persist-tun',
   'remote-cert-tls server', 'auth SHA256',
   'data-ciphers AES-128-GCM:AES-256-GCM', 'data-ciphers-fallback AES-128-GCM',
-  'verify-x509-name server_xxxxxxxx name', 'tls-version-min 1.2',
+  // CN của cert máy chủ cũng riêng từng người; bỏ qua verify-x509-name nếu không đặt.
+  ...(process.env.VPNMGR_TEST_SERVER_CN
+    ? [`verify-x509-name ${process.env.VPNMGR_TEST_SERVER_CN} name`] : []),
+  'tls-version-min 1.2',
   'ignore-unknown-option block-outside-dns', 'verb 3',
   ...['ca', 'cert', 'key', 'tls-crypt'].map((tag, i) =>
     `<${tag}>\n${readFileSync(liveCerts[i], 'utf8').trim()}\n</${tag}>`),
