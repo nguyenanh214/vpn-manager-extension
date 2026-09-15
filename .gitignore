@@ -3,6 +3,10 @@
 *.key
 *.crt
 *.ovpn
+*.p12
+*.pfx
+*.cer
+*.jks
 
 # Rác
 node_modules/

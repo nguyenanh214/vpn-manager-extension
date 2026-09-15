@@ -29,7 +29,17 @@ export function sandboxEnv(sandbox, { docker = false } = {}) {
   // PATH tối thiểu giống cách Chrome spawn host. Không thêm /usr/local/bin vào đây:
   // trên macOS Chrome thật sự KHÔNG có nó, và host phải tự dò ra docker qua
   // platform.dockerSearchPaths(). Cắt đúng như thật thì test mới bắt được lỗi đó.
-  return { HOME: sandbox, PATH: '/usr/bin:/bin', ...(docker ? dockerContextEnv() : {}) };
+  // Sandbox HOME che mất file node-path do installer ghi, mà PATH tối thiểu thì
+  // không có node nếu user cài bằng nvm — wrapper dò tiếp trong $HOME/.nvm cũng
+  // trượt vì HOME đang trỏ vào sandbox. Nhánh Windows né bằng cách đưa thư mục node
+  // vào PATH; ở đây dùng biến mà wrapper ưu tiên cao nhất, để PATH giữ nguyên tối
+  // thiểu đúng như Chrome spawn (test còn phải bắt được lỗi dò docker).
+  return {
+    HOME: sandbox,
+    PATH: '/usr/bin:/bin',
+    VPN_MANAGER_NODE: process.execPath,
+    ...(docker ? dockerContextEnv() : {}),
+  };
 }
 
 // Chụp lúc nạp module. import được hoist nên dòng này chạy TRƯỚC khi test gán

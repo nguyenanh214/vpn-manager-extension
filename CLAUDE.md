@@ -87,6 +87,42 @@ nó vào báo cáo hay commit message.
   đường. Cùng yêu cầu như `host-registry`. KHÔNG phủ lớp PAC của `chrome.proxy`
   — chọn đúng domain nào đi tunnel vẫn là việc của `routing`
 
+## 🔴 Không bao giờ commit dữ liệu cá nhân
+
+Repo này **public**. Lịch sử git là vĩnh viễn: sửa sau khi push nghĩa là phải viết lại
+lịch sử, và GitHub vẫn giữ object cũ truy cập được qua SHA.
+
+**Tuyệt đối không commit:**
+
+| Loại | Ví dụ |
+|---|---|
+| Certificate, private key | `*.pem`, `*.key`, `*.crt`, `*.p12`, `*.ovpn` |
+| Cấu hình riêng của máy | `.env` |
+| IP công khai thật | IP máy chủ VPN, IP nhà của user |
+| Định danh máy chủ thật | CN certificate, hostname DDNS, tên connection |
+| Đường dẫn home của một người | `/home/<tên>`, `/Users/<tên>`, `C:\Users\<tên>` |
+
+**Trong tài liệu và ví dụ, dùng dải dành riêng (RFC 5737 / RFC 2606):**
+`203.0.113.10` cho máy chủ, `198.51.100.25` cho máy người dùng, `vpn.example.com`
+cho hostname, `$HOME` hoặc `~` thay cho đường dẫn thật.
+
+**Cũng đừng chép nội dung nhạy cảm vào nơi khác:** commit message, báo cáo, file trong
+`plans/` hay `docs/`. Nội dung `.env` không bao giờ được in ra hay trích dẫn lại.
+
+### Hook chặn sẵn
+
+`scripts/githooks/pre-commit` chặn commit khi phát hiện file bí mật (kể cả khi bị
+`git add -f` xuyên qua `.gitignore`), khối PEM trong nội dung đã stage, hoặc IP công
+khai ngoài dải tài liệu. Đường dẫn home chỉ cảnh báo, không chặn.
+
+```bash
+git config core.hooksPath scripts/githooks    # bật một lần cho mỗi bản clone
+```
+
+Hook **không phải lớp bảo vệ duy nhất** — nó chỉ bắt được các mẫu đã biết. Trước khi
+commit vẫn phải tự đọc `git diff --cached`. Nếu hook chặn nhầm thì sửa mẫu trong hook,
+đừng quen tay `--no-verify`.
+
 ## Quy ước
 
 - File code giữ **dưới 200 dòng**; bash script được miễn

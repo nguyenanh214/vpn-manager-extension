@@ -1,0 +1,84 @@
+#!/bin/sh
+# Chặn commit dữ liệu cá nhân và bí mật.
+#
+# `.gitignore` không đủ: `git add -f` xuyên qua được, và nó không nhìn vào NỘI DUNG
+# file. Hook này kiểm cả hai, ngay trước khi commit thành lịch sử — sửa sau khi đã
+# push nghĩa là phải viết lại lịch sử.
+#
+# Bật: git config core.hooksPath scripts/githooks
+# Bỏ qua một lần (cân nhắc kỹ): git commit --no-verify
+#
+# Viết bằng POSIX sh để chạy được trên cả Linux, macOS và Git Bash trên Windows.
+
+red() { printf '\033[31m%s\033[0m\n' "$*" >&2; }
+ylw() { printf '\033[33m%s\033[0m\n' "$*" >&2; }
+
+FAIL=0
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$STAGED" ] && exit 0
+
+# --- 1. File theo đuôi: certificate, khoá, config VPN, biến môi trường ---
+BAD_FILES=$(echo "$STAGED" | grep -iE '\.(pem|key|crt|cer|p12|pfx|ovpn|jks|keystore)$|(^|/)\.env($|\.)' || true)
+if [ -n "$BAD_FILES" ]; then
+  red "✗ Đang định commit file bí mật:"
+  echo "$BAD_FILES" | sed 's/^/    /' >&2
+  red "  Gỡ khỏi staging: git restore --staged <file>"
+  FAIL=1
+fi
+
+# --- 2. Nội dung: khối PEM ---
+# Quét nội dung ĐÃ STAGE chứ không quét file trên đĩa — hai thứ có thể khác nhau.
+PEM_HITS=""
+for f in $STAGED; do
+  git show ":$f" 2>/dev/null \
+    | grep -qE '^-----BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----|^-----BEGIN CERTIFICATE-----|^-----BEGIN OpenVPN Static key' \
+    && PEM_HITS="$PEM_HITS $f"
+done
+if [ -n "$PEM_HITS" ]; then
+  red "✗ Nội dung có khối PEM (certificate hoặc private key):"
+  for f in $PEM_HITS; do echo "    $f" >&2; done
+  FAIL=1
+fi
+
+# --- 3. Địa chỉ IP công khai ---
+# Repo này từng lộ IP máy chủ VPN và IP nhà trong tài liệu. Dải dành cho tài liệu
+# (RFC 5737) và dải riêng thì bỏ qua; còn lại phải được xem lại bằng mắt.
+IP_HITS=""
+for f in $STAGED; do
+  ips=$(git show ":$f" 2>/dev/null \
+    | grep -ohE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' \
+    | grep -vE '^(10\.|127\.|0\.|255\.|169\.254\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)' \
+    | grep -vE '^(192\.0\.2\.|198\.51\.100\.|203\.0\.113\.)' \
+    | grep -vE '^(1\.1\.1\.1|8\.8\.8\.8|0\.0\.0\.0|128\.0\.0\.0|224\.|239\.)' \
+    | sort -u || true)
+  [ -n "$ips" ] && IP_HITS="$IP_HITS
+  $f: $(echo "$ips" | tr '\n' ' ')"
+done
+if [ -n "$IP_HITS" ]; then
+  red "✗ Có địa chỉ IP công khai — nếu là IP thật thì đừng commit:"
+  printf '%s\n' "$IP_HITS" >&2
+  ylw "  Ví dụ trong tài liệu nên dùng dải RFC 5737:"
+  ylw "    203.0.113.10 (máy chủ), 198.51.100.25 (máy người dùng)"
+  FAIL=1
+fi
+
+# --- 4. Đường dẫn home của một người cụ thể ---
+HOME_HITS=""
+for f in $STAGED; do
+  git show ":$f" 2>/dev/null \
+    | grep -qE '(/home/[a-z][a-z0-9_-]+|/Users/[A-Za-z][A-Za-z0-9_-]+|C:\\\\Users\\\\[A-Za-z])' \
+    && HOME_HITS="$HOME_HITS $f"
+done
+if [ -n "$HOME_HITS" ]; then
+  ylw "! Có đường dẫn home của một người cụ thể:"
+  for f in $HOME_HITS; do echo "    $f" >&2; done
+  ylw "  Dùng \$HOME, ~ hoặc <user> thay cho tên thật. Đây là CẢNH BÁO, không chặn."
+fi
+
+if [ "$FAIL" -ne 0 ]; then
+  red ""
+  red "Commit bị chặn. Nếu chắc chắn đây không phải dữ liệu thật:"
+  red "    git commit --no-verify"
+  exit 1
+fi
+exit 0

@@ -204,8 +204,14 @@ xoá default route qua `eth0` sau khi tunnel lên — `tun0` mất thì gói tin
 
 Ba điều nên biết trước khi sửa:
 
-- **Giữ nguyên `.gitignore`.** Nó chặn `*.pem`, `*.key`, `*.crt`, `*.ovpn` — chủ ý, để
-  bạn không vô tình commit certificate của mình.
+- **Bật hook chặn commit dữ liệu cá nhân** ngay sau khi clone:
+
+  ```bash
+  git config core.hooksPath scripts/githooks
+  ```
+
+  Nó chặn commit certificate, private key, `.env` và IP công khai thật — kể cả khi bị
+  `git add -f` xuyên qua `.gitignore`. Cũng đừng gỡ các dòng trong `.gitignore`.
 - **Đổi native messaging host ID.** Mặc định `com.andy.vpn_manager`, nằm ở
   `extension/lib/constants.js`, `native-host/com.andy.vpn_manager.json.template` và
   bốn script cài/gỡ. Hai fork cùng ID trên một máy sẽ **ghi đè manifest của nhau**.
