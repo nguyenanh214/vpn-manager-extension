@@ -5,6 +5,7 @@
 // Các hàm nhận tham số `plat`/`env`/`home` để test giả lập được cả ba OS trên
 // một máy, thay vì phải có đủ ba máy mới kiểm được.
 
+const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
@@ -116,8 +117,81 @@ function pathsEqual(a, b, plat = process.platform) {
   return a === b;
 }
 
+/**
+ * Nơi tìm docker khi PATH không có nó.
+ *
+ * macOS là chỗ đau: launchd cấp cho app GUI đúng PATH=/usr/bin:/bin:/usr/sbin:/sbin,
+ * mà Docker Desktop lại đặt symlink ở /usr/local/bin. Chrome spawn host xong là
+ * `spawn docker ENOENT` — triệu chứng trông y hệt "Docker chưa chạy".
+ */
+function dockerSearchPaths(plat = process.platform, env = process.env, home = os.homedir()) {
+  switch (osKind(plat)) {
+    case 'macos':
+      return [
+        '/usr/local/bin/docker',
+        '/opt/homebrew/bin/docker',
+        path.posix.join(home, '.docker', 'bin', 'docker'),
+        '/Applications/Docker.app/Contents/Resources/bin/docker',
+      ];
+    case 'windows': {
+      const P = path.win32;
+      return [
+        P.join(env.ProgramFiles || 'C:\\Program Files',
+          'Docker', 'Docker', 'resources', 'bin', 'docker.exe'),
+        P.join(env.LOCALAPPDATA || P.join(home, 'AppData', 'Local'),
+          'Docker', 'bin', 'docker.exe'),
+      ];
+    }
+    default:
+      return ['/usr/bin/docker', '/usr/local/bin/docker', '/snap/bin/docker'];
+  }
+}
+
+const canExec = (p) => {
+  try {
+    // isFile() là bắt buộc: accessSync(X_OK) trả true cho cả THƯ MỤC, nên một thư mục
+    // tên `docker` nằm trong PATH sẽ thắng binary thật rồi execFile ném EACCES.
+    // Windows còn dễ dính hơn — Node bỏ qua X_OK ở đó nên nó chỉ còn là F_OK.
+    if (!fs.statSync(p).isFile()) return false;
+    fs.accessSync(p, fs.constants.X_OK);
+    return true;
+  } catch { return false; }
+};
+
+/**
+ * Đường dẫn thực thi của `name`: ưu tiên PATH hiện có, sau đó các vị trí cài đặt
+ * quen thuộc. Không tìm thấy thì trả lại `name` nguyên vẹn để lỗi ENOENT nổi lên ở
+ * đúng chỗ gọi execFile kèm ngữ cảnh, thay vì thành lỗi mơ hồ ở đây.
+ *
+ * `isExec` tách ra được để test giả lập cả ba OS mà không cần file thật.
+ */
+function resolveExecutable(name, candidates = [], env = process.env,
+  plat = process.platform, isExec = canExec) {
+  const P = pathFor(plat);
+  const isWin = osKind(plat) === 'windows';
+  // Windows: quét PATH phải tự thêm đuôi, vì libuv mới là bên gắn PATHEXT khi ta đưa
+  // cho nó tên trần. Thiếu bước này thì `docker` không khớp entry nào và ta bỏ qua
+  // PATH hoàn toàn. Chỉ nhận các đuôi của PATHEXT, KHÔNG nhận tên trần: file `docker`
+  // không đuôi trong PATH là shim sh của Git-Bash/MSYS/WSL, exec thẳng nó là chạy
+  // một file không phải PE. PATHEXT cũng không bao giờ khớp tên trần.
+  const leaves = isWin && !/\.[a-z0-9]+$/i.test(name)
+    ? [`${name}.exe`, `${name}.cmd`, `${name}.bat`]
+    : [name];
+  for (const dir of (env.PATH || env.Path || '').split(isWin ? ';' : ':')) {
+    if (!dir) continue;
+    for (const leaf of leaves) {
+      if (isExec(P.join(dir, leaf))) return P.join(dir, leaf);
+    }
+  }
+  for (const candidate of candidates) {
+    if (isExec(candidate)) return candidate;
+  }
+  return name;
+}
+
 module.exports = {
   osKind, stateDir, pathFor, nativeHostDirs, nodeSearchPaths,
+  dockerSearchPaths, resolveExecutable,
   hostLauncher, supportsNetworkManager, pathsEqual,
   WINDOWS_REGISTRY_KEYS, BROWSER_ROOTS,
 };

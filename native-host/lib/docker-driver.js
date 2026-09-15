@@ -3,6 +3,7 @@
 
 const { execFile } = require('child_process');
 const spec = require('./container-spec');
+const platform = require('./platform');
 const { createHealth } = require('./tunnel-health');
 
 const { IMAGE, NAME_PREFIX, containerName, signatureOf, buildCreateArgs } = spec;
@@ -11,9 +12,20 @@ const READY_MARKER = 'VPNMGR_READY';
 const READY_TIMEOUT_MS = 45000;
 const POLL_INTERVAL_MS = 500;
 
+// Chrome spawn native host với PATH tối thiểu: trên macOS là PATH của launchd
+// (/usr/bin:/bin:/usr/sbin:/sbin), không có /usr/local/bin nơi Docker Desktop đặt
+// symlink. Dò lúc gọi đầu tiên chứ không phải lúc nạp module, để test đổi PATH được.
+let dockerBin = null;
+function resolveDocker() {
+  if (dockerBin === null) {
+    dockerBin = platform.resolveExecutable('docker', platform.dockerSearchPaths());
+  }
+  return dockerBin;
+}
+
 function docker(args, { timeoutMs = 30000 } = {}) {
   return new Promise((resolve, reject) => {
-    execFile('docker', args, { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 },
+    execFile(resolveDocker(), args, { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 },
       (err, stdout, stderr) => {
         if (err) {
           err.stdout = stdout;
