@@ -209,14 +209,59 @@ grn "  ✓ node: $NODE_BIN"
 # --- 6. Thử spawn đúng như Chrome ---
 echo
 echo "[6/6] Thử spawn native host giống hệt Chrome"
-# Chrome không nạp shell profile và chỉ cấp PATH tối thiểu.
-SPAWN_OUT="$(env -i HOME="$HOME" PATH=/usr/bin:/bin "$HOST_PATH" < /dev/null 2>&1)" || true
+# Chrome không nạp shell profile và chỉ cấp PATH tối thiểu — mà "tối thiểu" khác nhau
+# giữa hai OS. Trên macOS, Chrome nhận PATH của launchd; kiểm chứng bằng
+# `ps -p <pid Chrome> -E` là đúng bốn thư mục dưới đây, KHÔNG có /usr/local/bin.
+if [ "$OS" = "macos" ]; then
+  MIN_PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+else
+  MIN_PATH="/usr/bin:/bin"
+fi
+
+SPAWN_OUT="$(env -i HOME="$HOME" PATH="$MIN_PATH" "$HOST_PATH" < /dev/null 2>&1)" || true
 if echo "$SPAWN_OUT" | grep -q "khởi động pid="; then
   grn "  ✓ host khởi động được với PATH tối thiểu"
 else
   red "  ✗ host KHÔNG khởi động được khi Chrome spawn:"
   echo "$SPAWN_OUT" | sed 's/^/      /'
   fail "Sửa lỗi trên rồi chạy lại"
+fi
+
+# Khởi động được vẫn chưa đủ: host còn phải TÌM RA docker với PATH đó. Trên macOS
+# Docker Desktop đặt symlink ở /usr/local/bin, ngoài PATH của launchd — host chạy
+# ngon rồi chết ở `spawn docker ENOENT`, triệu chứng trông như Docker chưa chạy.
+echo -n "  Host có gọi được docker với PATH đó không... "
+# Giữ lại các biến CHỌN ENDPOINT của docker: `env -i` xoá sạch chúng, mà Docker
+# rootless trên Linux chọn socket qua DOCKER_HOST/XDG_RUNTIME_DIR. Không giữ thì probe
+# fail trong khi máy hoàn toàn dùng được. `${v:+...}` để biến rỗng thì biến mất hẳn
+# chứ không thành chuỗi rỗng — docker phân biệt hai thứ đó.
+DOCKER_PROBE="$(env -i HOME="$HOME" PATH="$MIN_PATH" \
+  ${DOCKER_HOST:+DOCKER_HOST="$DOCKER_HOST"} \
+  ${DOCKER_CONTEXT:+DOCKER_CONTEXT="$DOCKER_CONTEXT"} \
+  ${XDG_RUNTIME_DIR:+XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR"} \
+  "$NODE_BIN" \
+  -e 'const p=require(process.argv[1]);
+      const bin=p.resolveExecutable("docker", p.dockerSearchPaths());
+      require("child_process").execFile(bin, ["info", "--format", "{{.ServerVersion}}"],
+        { timeout: 20000 },
+        (e) => { console.log(e ? "PROBE_FAIL " + bin + ": " + e.message : "PROBE_OK " + bin); });' \
+  "$REPO_DIR/native-host/lib/platform.js" 2>&1)" || true
+if echo "$DOCKER_PROBE" | grep -q PROBE_OK; then
+  grn "OK ($(echo "$DOCKER_PROBE" | sed -n 's/^.*PROBE_OK //p' | head -1))"
+elif [ "$OS" = "macos" ]; then
+  # macOS: đã kiểm chứng Chrome cấp đúng PATH này, nên fail ở đây là hỏng thật.
+  echo
+  red "  ✗ Host không gọi được docker khi Chrome spawn:"
+  echo "$DOCKER_PROBE" | sed 's/^/      /'
+  fail "Thêm vị trí cài docker vào dockerSearchPaths() trong native-host/lib/platform.js"
+else
+  # Linux: chỉ cảnh báo. Ở đây Chrome thường được khởi động từ session đã export sẵn
+  # DOCKER_HOST, nên probe này nghiêm hơn thực tế — chặn cài đặt là chặn nhầm.
+  echo
+  ylw "  ! Không gọi được docker với PATH tối thiểu:"
+  echo "$DOCKER_PROBE" | sed 's/^/      /'
+  ylw "    Nếu popup báo \"Docker không dùng được\", thêm vị trí cài docker vào"
+  ylw "    dockerSearchPaths() trong native-host/lib/platform.js"
 fi
 
 echo

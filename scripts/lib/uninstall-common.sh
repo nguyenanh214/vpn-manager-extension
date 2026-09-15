@@ -5,6 +5,13 @@
 # KHÔNG KÈM BẤT KỲ BẢO ĐẢM NÀO. Xem file LICENSE.
 # Phần chung của uninstall-linux.sh và uninstall-macos.sh.
 # KHÔNG chạy trực tiếp — entry point đặt $OS rồi source nó.
+#
+# Gỡ cài đặt là việc best-effort: một bước hỏng thì vẫn phải chạy nốt ba bước còn
+# lại. Entry point bật `set -e` cho phần kiểm tra OS của nó, phải tắt lại ở đây —
+# để nguyên là cả script chết giữa chừng mà KHÔNG in ra chữ nào. Đã dính thật:
+# `ls profiles` fail (chưa import .ovpn nào) + pipefail + -e làm bước 4 thoát ngay
+# trước `rm -rf`, state còn nguyên còn script thì báo "xong".
+set +e
 set -uo pipefail
 
 : "${OS:?uninstall-common.sh cần biến OS}"
@@ -57,7 +64,7 @@ docker rmi "$IMAGE" >/dev/null 2>&1 && echo "  ✓ $IMAGE" || echo "  - image kh
 echo "[4/4] Xoá state"
 # Thư mục này chứa file .ovpn user import — có private key inline.
 if [ -d "$STATE_DIR" ]; then
-  COUNT="$(ls -1 "$STATE_DIR/profiles" 2>/dev/null | wc -l | tr -d ' ')"
+  COUNT="$(ls -1 "$STATE_DIR/profiles" 2>/dev/null | wc -l | tr -d ' ')" || COUNT=0
   rm -rf "$STATE_DIR"
   echo "  ✓ $STATE_DIR (kèm $COUNT file .ovpn đã lưu)"
 else
