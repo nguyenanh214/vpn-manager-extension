@@ -1,3 +1,8 @@
+// VPN Manager — định tuyến từng domain qua OpenVPN tunnel riêng.
+// Copyright (C) 2026 thuyanh.nguyen
+//
+// Phát hành theo GNU General Public License v3.0 hoặc bản mới hơn.
+// KHÔNG KÈM BẤT KỲ BẢO ĐẢM NÀO. Xem file LICENSE.
 // Router giữa popup và các module nghiệp vụ, cộng với vòng đời extension.
 
 import * as bridge from './native-bridge.js';

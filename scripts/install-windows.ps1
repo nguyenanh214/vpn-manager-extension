@@ -1,4 +1,9 @@
-﻿# Cài đặt VPN Manager trên Windows.
+﻿# VPN Manager — định tuyến từng domain qua OpenVPN tunnel riêng.
+# Copyright (C) 2026 thuyanh.nguyen
+#
+# Phát hành theo GNU General Public License v3.0 hoặc bản mới hơn.
+# KHÔNG KÈM BẤT KỲ BẢO ĐẢM NÀO. Xem file LICENSE.
+# Cài đặt VPN Manager trên Windows.
 #
 # Chạy bằng:
 #   powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1 <extension-id>

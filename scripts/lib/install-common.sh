@@ -1,3 +1,8 @@
+# VPN Manager — định tuyến từng domain qua OpenVPN tunnel riêng.
+# Copyright (C) 2026 thuyanh.nguyen
+#
+# Phát hành theo GNU General Public License v3.0 hoặc bản mới hơn.
+# KHÔNG KÈM BẤT KỲ BẢO ĐẢM NÀO. Xem file LICENSE.
 # Phần chung của install-linux.sh và install-macos.sh.
 # KHÔNG chạy trực tiếp file này — entry point đặt $OS rồi source nó.
 #

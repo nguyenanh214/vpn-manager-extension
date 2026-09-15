@@ -1,4 +1,9 @@
-﻿# Gỡ VPN Manager trên Windows: dừng tunnel, xoá registry, xoá image, xoá state.
+﻿# VPN Manager — định tuyến từng domain qua OpenVPN tunnel riêng.
+# Copyright (C) 2026 thuyanh.nguyen
+#
+# Phát hành theo GNU General Public License v3.0 hoặc bản mới hơn.
+# KHÔNG KÈM BẤT KỲ BẢO ĐẢM NÀO. Xem file LICENSE.
+# Gỡ VPN Manager trên Windows: dừng tunnel, xoá registry, xoá image, xoá state.
 #
 # Chạy bằng:
 #   powershell -ExecutionPolicy Bypass -File scripts\uninstall-windows.ps1

@@ -101,7 +101,10 @@ certificate riêng cho từng máy.
 
 ## Bảo mật
 
-Xem [docs/system-architecture.md](docs/system-architecture.md) và
+Mô hình đe doạ đầy đủ — công cụ này bảo vệ được gì và **không** bảo vệ được gì — nằm
+ở [SECURITY.md](SECURITY.md). Đọc trước khi dựa vào nó cho việc quan trọng.
+
+Chi tiết kỹ thuật: [docs/system-architecture.md](docs/system-architecture.md) và
 [docs/code-standards.md](docs/code-standards.md).
 
 Tóm tắt: `chrome.storage.local` là **plaintext trên đĩa**, nên extension **chỉ lưu
@@ -115,3 +118,41 @@ Fail-closed ở hai tầng. PAC **không có fallback `DIRECT`**: tunnel chết 
 xoá default route qua `eth0` sau khi tunnel lên — `tun0` mất thì gói tin không còn
 đường ra. Cần thiết vì `socat` (dùng cho port-forward) không ràng buộc interface như
 `sockd`, thiếu killswitch thì forward sẽ rò ra ngoài VPN lúc tunnel sập.
+
+## Nếu bạn fork
+
+Ba điều nên biết trước khi sửa:
+
+- **Giữ nguyên `.gitignore`.** Nó chặn `*.pem`, `*.key`, `*.crt`, `*.ovpn` — chủ ý, để
+  bạn không vô tình commit certificate của mình.
+- **Đổi native messaging host ID.** Mặc định `com.andy.vpn_manager`, nằm ở
+  `extension/lib/constants.js`, `native-host/com.andy.vpn_manager.json.template` và
+  bốn script cài/gỡ. Hai fork cùng ID trên một máy sẽ **ghi đè manifest của nhau**.
+- **Đừng gỡ killswitch để cho tiện.** Nó là thứ chặn port-forward rò traffic ra ngoài
+  VPN lúc tunnel sập.
+
+Chạy `tests/run-all.sh` trên Linux sau khi sửa. Đa số test cần bash và Chrome for
+Testing; năm bộ chạy được trên cả ba OS, xem [CLAUDE.md](CLAUDE.md).
+
+## Đóng góp
+
+Đây là công cụ cá nhân, không phải sản phẩm có lộ trình.
+
+**Issue thì cứ mở** — báo lỗi, hỏi cách dùng, góp ý đều hoan nghênh. Lỗ hổng bảo mật
+thì đừng mở issue công khai, xem [SECURITY.md](SECURITY.md).
+
+**Pull request có thể không được merge.** Không phải vì đóng góp không tốt, mà vì tôi
+chưa có thời gian duy trì việc review. Fork về sửa cho hợp nhu cầu của bạn là cách
+nhanh hơn — giấy phép cho phép hẳn hoi.
+
+## Giấy phép
+
+[GPL-3.0](LICENSE).
+
+Tóm tắt không thay thế văn bản gốc: bạn được dùng, sửa và phân phối lại. Nếu bạn phát
+hành bản đã sửa thì **phải mở mã nguồn theo cùng giấy phép này**. Không thể lấy code
+này làm sản phẩm đóng.
+
+Phần mềm phát hành **không kèm bất kỳ bảo đảm nào** (mục 15 và 16 của giấy phép). Nó
+định tuyến traffic của bạn; nếu cấu hình sai hoặc có lỗi, traffic bạn tưởng đang đi qua
+VPN có thể không đi qua. Tự kiểm chứng là trách nhiệm của người dùng.

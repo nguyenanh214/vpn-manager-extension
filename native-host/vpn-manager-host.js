@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// VPN Manager — định tuyến từng domain qua OpenVPN tunnel riêng.
+// Copyright (C) 2026 thuyanh.nguyen
+//
+// Phát hành theo GNU General Public License v3.0 hoặc bản mới hơn.
+// KHÔNG KÈM BẤT KỲ BẢO ĐẢM NÀO. Xem file LICENSE.
 'use strict';
 // Native messaging host cho VPN Manager extension.
 // Chrome spawn process này, giao tiếp qua stdin/stdout. stderr đi vào log của Chrome.
