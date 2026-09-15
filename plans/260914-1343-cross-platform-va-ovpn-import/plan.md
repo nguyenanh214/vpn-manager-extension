@@ -40,8 +40,9 @@ Runbook Windows: [windows-test-handover.md](windows-test-handover.md) — **đã
 2026-09-14**, sửa 4 lỗi, kết nối VPN thật thành công. Phần *cách debug* và *ràng buộc
 khi sửa* trong đó vẫn dùng lại được cho macOS.
 
-Máy dev là Linux. Windows nay đã kiểm chứng trên máy thật; **macOS vẫn là code chưa
-chạy thử lần nào** — đó là việc tiếp theo.
+Máy dev là Linux. Cả Windows lẫn macOS nay đều đã kiểm chứng trên máy thật: dựng được
+tunnel, traffic ra đúng IP VPN, và luồng bấm tay trong popup chạy được. Còn lại là
+chạy lại regression trên Linux sau đợt sửa macOS, và port các bộ test cần trình duyệt.
 
 ## Phase
 
@@ -50,9 +51,9 @@ chạy thử lần nào** — đó là việc tiếp theo.
 | 01 | [docker cp thay bind-mount](phase-01-docker-cp.md) | ✅ Xong | Linux (60 test pass) |
 | 02 | [Import file .ovpn](phase-02-ovpn-import.md) | ✅ Xong | Linux (82 test pass) |
 | 03 | [Trừu tượng hoá OS](phase-03-os-abstraction.md) | ✅ Xong | Linux (106 test pass) |
-| 04 | [Installer macOS](phase-04-installer-macos.md) | ✅ Code xong | ⬜ chờ user chạy trên macOS |
+| 04 | [Installer macOS](phase-04-installer-macos.md) | ✅ Xong, sửa 11 lỗi | ✅ macOS 26 Apple Silicon — cài, gỡ, tunnel thật, traffic đúng IP VPN, popup bấm tay (69 test pass) |
 | 05 | [Installer Windows](phase-05-installer-windows.md) | ✅ Xong, sửa 4 lỗi | ✅ Windows 11 + PS 5.1 — cài đặt, native host và kết nối VPN đều chạy thật |
-| 06 | [Tài liệu + checklist](phase-06-docs.md) | 🟡 README xong | ⬜ còn checklist macOS |
+| 06 | [Tài liệu + checklist](phase-06-docs.md) | ✅ Xong | ✅ bảng kiểm chứng đủ ba OS |
 
 ## Phụ thuộc
 

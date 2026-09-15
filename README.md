@@ -103,12 +103,17 @@ Linux/macOS, `.bat` trên Windows) tự dò lại nếu đường dẫn đó đ�
 
 | | Linux | macOS | Windows |
 |---|---|---|---|
-| Cài đặt | ✅ chạy thật | 🟡 chỉ chạy trong container bash 3.2 giả lập | ✅ Windows 11 + PS 5.1 |
-| Gỡ cài đặt | ✅ | 🟡 giả lập | ✅ |
-| Import `.ovpn`, bật domain | ✅ | ⬜ chưa chạy | ✅ |
-| Port-forward | ✅ | ⬜ chưa chạy | ✅ |
+| Cài đặt | ✅ chạy thật | ✅ macOS 26, Apple Silicon, bash 3.2 | ✅ Windows 11 + PS 5.1 |
+| Gỡ cài đặt | ✅ | ✅ | ✅ |
+| Tunnel thật, traffic ra đúng IP VPN | ✅ | ✅ bộ `traffic` + `host-registry` | ✅ |
+| Import `.ovpn`, bật domain qua popup | ✅ | ✅ | ✅ |
+| Port-forward | ✅ | ✅ | ✅ |
 
-macOS chưa ai chạy thật lần nào. Nếu bạn thử và gặp lỗi, mở issue — rất hữu ích.
+Cả ba hệ điều hành đều đã chạy thật, không còn ô nào là suy đoán. Riêng các **bộ test
+tự động cần trình duyệt** thì vẫn chỉ chạy trên Linux — `launch-chrome.sh` bám vào
+Chrome for Testing bản Linux; trên macOS và Windows phần đó kiểm bằng tay.
+
+Nếu bạn thử và gặp lỗi, mở issue — rất hữu ích.
 
 ## Sử dụng
 

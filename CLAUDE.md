@@ -7,29 +7,21 @@ chạy OpenVPN client + SOCKS5 + port-forward.
 
 Kiến trúc đầy đủ: [docs/system-architecture.md](docs/system-architecture.md)
 
-## 🔴 Việc tiếp theo, nếu bạn đang chạy trên macOS
+## Việc tiếp theo
 
-**Nhiệm vụ: test installer macOS lần đầu và sửa lỗi.** Giống hệt tình thế của Windows
-một hôm trước: code viết từ máy Linux, **chưa chạy trên macOS thật lần nào**.
+Cả ba hệ điều hành đã chạy thật: cài, gỡ, dựng tunnel, traffic ra đúng IP VPN, và luồng
+bấm tay trong popup (import `.ovpn`, bật domain, port-forward). Không còn việc nào chặn
+người dùng. Còn lại hai việc kỹ thuật:
 
-👉 [plans/.../phase-04-installer-macos.md](plans/260914-1343-cross-platform-va-ovpn-import/phase-04-installer-macos.md)
+1. **Chạy lại `tests/run-all.sh` đầy đủ trên Linux.** Đợt sửa macOS có đụng file dùng
+   chung: `platform.js`, `docker-driver.js`, `scripts/lib/*.sh`, `tests/run-all.sh`,
+   `tests/stop-chrome.sh` và bốn file test. Chưa ai chạy lại bộ cần trình duyệt.
+2. **Port các bộ test cần trình duyệt sang macOS/Windows** — `tests/launch-chrome.sh`
+   hardcode `chrome-linux64` và `DISPLAY`, còn `harness.js` giữ `EXT_ID` cố định trong
+   khi Chrome sinh id theo đường dẫn nên mỗi máy một khác.
 
-Luồng: `scripts/install-macos.sh <extension-id>` → load unpacked `extension/` →
-Reload extension → import `.ovpn` → bật domain → kiểm IP. Gỡ ra làm lại bằng
-`scripts/uninstall-macos.sh`.
-
-Đọc [windows-test-handover.md](plans/260914-1343-cross-platform-va-ovpn-import/windows-test-handover.md)
-trước — phần **cách debug** và **ràng buộc khi sửa** áp dụng nguyên cho macOS, chỉ
-khác chỗ đăng ký native host (macOS thả file vào
-`~/Library/Application Support/<browser>/NativeMessagingHosts/`, không phải registry).
-
-Bài học Windows để lại, đáng ngờ ở macOS: bash mặc định của macOS là **3.2** (từ 2007)
-— `install-macos.sh` đã bỏ mảng vì `DOCKER_ENV=()` + `set -u` vỡ ở đó, nhưng chưa chạy
-thật lần nào. Và đừng tin `[ -c /dev/net/tun ]`: Docker chạy trong VM nên host macOS
-không có device đó, phải thử `ip tuntap add` **bên trong container**.
-
-Windows đã xong, không cần làm gì thêm ở đó. Máy Windows đang cài sẵn, extension id
-`jjjlompfphjoakhblebcifjpliigghhf`.
+Máy Windows đang cài sẵn, extension id `jjjlompfphjoakhblebcifjpliigghhf`.
+Máy macOS đang cài sẵn, extension id `jopcdlgobhaaaoaoplegfdeoidengnoa`.
 
 ## Trạng thái
 
@@ -38,24 +30,26 @@ Windows đã xong, không cần làm gì thêm ở đó. Máy Windows đang cài
 | 01 `docker cp` thay bind-mount | ✅ Linux |
 | 02 Import file `.ovpn` | ✅ Linux |
 | 03 Trừu tượng hoá OS | ✅ Linux |
-| 04 Installer macOS | 🟡 code xong, chưa chạy trên macOS thật |
+| 04 Installer macOS | ✅ macOS 26 Apple Silicon, sửa 11 lỗi, kết nối thật chạy được |
 | 05 Installer Windows | ✅ Windows 11 + PS 5.1, kết nối thật chạy được |
-| 06 Tài liệu | 🟡 README + LICENSE + SECURITY xong |
+| 06 Tài liệu | ✅ README + LICENSE + SECURITY, bảng kiểm chứng đủ ba OS |
 
 Kế hoạch: [plans/260914-1343-cross-platform-va-ovpn-import/plan.md](plans/260914-1343-cross-platform-va-ovpn-import/plan.md)
 
 ## Kiểm thử
 
-130 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
+142 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
 
 ```bash
 tests/run-all.sh              # tất cả
 tests/run-all.sh platform     # một bộ
 ```
 
-Năm bộ không cần trình duyệt, chạy được trên cả ba OS — kể cả Windows:
+Năm bộ không cần trình duyệt, chạy được trên cả ba OS — kể cả Windows. **69 test này
+đã chạy thật trên macOS**, pass hết. macOS cần `brew install coreutils` nếu muốn có
+`gtimeout`; không có thì runner vẫn chạy, chỉ mất giới hạn thời gian:
 
-- `platform` (24 test) — giả lập cả ba OS
+- `platform` (36 test) — giả lập cả ba OS
 - `ovpn-store` (9 test) — dọn file .ovpn mồ côi, chạy trong sandbox bằng cách trỏ
   `APPDATA`/`HOME` vào thư mục tạm
 - `prune-ovpn` (8 test) — cùng chức năng nhưng đi qua native host thật, spawn đúng
@@ -115,8 +109,27 @@ Năm bộ không cần trình duyệt, chạy được trên cả ba OS — kể
 - **Test spawn host phải sandbox `APPDATA`/`HOME`.** Host tính `stateDir()` từ env
   lúc nạp module, nên truyền env tạm là đủ tách khỏi profile thật. Không làm thế thì
   `prune-ovpn` với `keepIds: []` xoá sạch file `.ovpn` của chính người chạy test.
+- **macOS: Docker Desktop KHÔNG tạo `/var/run/docker.sock`.** Endpoint thật là
+  `~/.docker/run/docker.sock`, chọn qua "context" nằm trong `$HOME/.docker`. Test nào
+  sandbox `HOME` là mất context, mọi lệnh docker ném lỗi — mà helper trong test lại
+  nuốt lỗi, nên hậu quả là chốt an toàn im lặng tắt ngóm và có bước **PASS sai**.
+  Truyền `DOCKER_CONFIG` trỏ về HOME thật. Lấy HOME thật bằng `os.userInfo().homedir`,
+  **không** phải `os.homedir()` — hàm sau đọc `$HOME` mà test vừa trỏ đi chỗ khác.
+- **`timeout` là coreutils GNU, macOS không có.** `tests/run-all.sh` báo mọi bộ THẤT
+  BẠI mà chưa hề chạy — trông y hệt test hỏng thật. Homebrew cài nó thành `gtimeout`.
+- **`set -e` của entry point đè lên giả định của file được source.**
+  `uninstall-common.sh` cố ý viết best-effort (`set -uo pipefail`, không `-e`), nhưng
+  `uninstall-macos.sh` bật `-e` trước khi source. Một `ls` fail + `pipefail` là script
+  chết giữa chừng, **không in chữ nào**, state còn nguyên. Tắt lại `set +e` tường minh.
+- **Chạy `host-registry` sát `traffic` thì `traffic` vỡ.** Host đóng stdin còn chờ
+  grace 15s rồi `stopAll()` — xoá container `vpnmgr-*` theo tiền tố tên, kể cả tunnel
+  của bộ SAU. Thứ tự mặc định thoát nạn chỉ nhờ `prune-ovpn` chen giữa đủ lâu. Chờ host
+  thoát thì so PID trước/sau, đừng đếm tổng: host của Chrome người dùng sống suốt phiên.
 - **"PATH tối thiểu" của Chrome không giống nhau giữa các OS.** Trên Linux Chrome
   đúng là cho `/usr/bin:/bin`, và `docker` nằm sẵn ở đó nên test giả lập được. Trên
   Windows Chrome truyền nguyên PATH của user, mà `docker.exe` nằm trong thư mục cài
   Docker Desktop — bê nguyên PATH tối thiểu kiểu Linux sang là host báo
-  `spawn docker ENOENT`, triệu chứng trông như Docker chưa chạy.
+  `spawn docker ENOENT`, triệu chứng trông như Docker chưa chạy. **Trên macOS Chrome
+  nhận PATH của launchd** (`/usr/bin:/bin:/usr/sbin:/sbin`), không có `/usr/local/bin`
+  nơi Docker Desktop đặt symlink — cùng triệu chứng `spawn docker ENOENT`. Muốn biết
+  PATH thật thì đọc thẳng tiến trình Chrome: `ps -p <pid> -E`, đừng đoán.

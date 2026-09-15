@@ -1,5 +1,136 @@
 # Changelog
 
+## 1.9.0 — 2026-09-15
+
+### macOS chạy thật lần đầu, và năm lỗi nó lộ ra
+
+Phần macOS viết từ máy Linux, chưa chạy trên macOS lần nào. Chạy thử trên macOS 26 /
+Apple Silicon / bash 3.2.57 / Docker Desktop 29.7.2 / node qua nvm.
+
+**Dự đoán lớn nhất của phase đã sai.** Cả kế hoạch xoay quanh nỗi lo bash 3.2 làm vỡ
+installer; thực tế `install-macos.sh` chạy trọn 6 bước ngay lần đầu, không một lỗi bash
+nào. Vòng kiểm chứng trước đó trong container `bash:3.2` có tác dụng thật. Năm lỗi tìm
+được thì không cái nào dính tới bash.
+
+#### 1. Host không tìm thấy `docker` khi Chrome spawn — lỗi chặn đứng
+
+Bài học Windows lặp lại ở dạng khác: "PATH tối thiểu của Chrome" mỗi OS một kiểu.
+
+Gốc: `launchctl getenv PATH` rỗng nên app GUI trên macOS nhận PATH mặc định của
+launchd. Đọc thẳng từ tiến trình Chrome đang chạy (`ps -p <pid> -E`) xác nhận:
+`PATH=/usr/bin:/bin:/usr/sbin:/sbin`. Docker Desktop đặt symlink ở `/usr/local/bin/docker`
+— **ngoài PATH đó**. `execFile('docker', ...)` trả `spawn docker ENOENT`.
+
+Người dùng sẽ thấy "Docker không dùng được" và tưởng Docker chưa chạy, trong khi Docker
+hoàn toàn khoẻ. Đúng loại triệu chứng chỉ sai một chỗ mà dẫn đi rất xa.
+
+Sửa: `dockerSearchPaths()` + `resolveExecutable()` trong `platform.js` (ưu tiên PATH,
+rồi tới các vị trí cài quen thuộc, không thấy thì trả lại tên trần để ENOENT nổi lên ở
+đúng chỗ gọi). `docker-driver.js` dò một lần rồi dùng đường dẫn tuyệt đối.
+
+#### 2. Bước 6 của installer không đủ sức bắt lỗi trên
+
+Nó chỉ kiểm host *khởi động được* — mà host khởi động được thật, nó chết sau đó lúc gọi
+docker. Đã thêm phép thử `docker info` bằng đúng PATH tối thiểu, và sửa PATH giả lập
+cho macOS thành 4 thư mục của launchd thay vì 2 của Linux.
+
+#### 3. `uninstall` thoát giữa chừng, im lặng, để lại state — dính cả Linux
+
+Bước 4 in tiêu đề rồi không in gì nữa, `~/.config/vpn-manager` còn nguyên, exit 1.
+
+Gốc: entry point bật `set -e`, còn `uninstall-common.sh` cố ý viết theo kiểu best-effort
+(`set -uo pipefail`, **không** `-e`) — giả định đó bị entry point phá. Máy chưa import
+`.ovpn` nào nên `profiles/` không tồn tại → `ls` fail → `pipefail` → `-e` giết script
+ngay trước `rm -rf`. Linux dính y hệt, chỉ là ở đó `profiles/` thường đã có sẵn.
+
+Sửa: `set +e` tường minh trong `uninstall-common.sh`, kèm lý do.
+
+#### 4. `tests/run-all.sh` không chạy được trên macOS
+
+`timeout` là coreutils GNU, macOS không ship. Mọi bộ test báo THẤT BẠI **mà chưa hề
+chạy** — kiểu thất bại tệ nhất, vì nó trông y như test hỏng thật.
+
+Sửa: dùng `timeout`, `gtimeout` (Homebrew), hoặc chạy thẳng kèm cảnh báo.
+
+#### 5. Ba lỗi trong chính bộ test, Docker Desktop mới lộ ra
+
+Docker Desktop trên macOS **không tạo `/var/run/docker.sock`**; endpoint thật là
+`~/.docker/run/docker.sock`, chọn qua "context" lưu trong `$HOME/.docker`. Các bộ test
+sandbox `HOME` nên mất context, mọi lệnh docker ném lỗi — và các helper đều nuốt lỗi:
+
+- `prune-ovpn`: chốt chặn "bỏ qua nếu đang có tunnel chạy" **im lặng tắt ngóm**, kết
+  luận không có tunnel nào. Đúng chốt chặn dựng ra để khỏi giết tunnel thật của user.
+- `host-registry` và `traffic`: mọi phép kiểm container thấy "trống" — vừa FAIL sai vừa
+  **PASS sai** ở bước "tunnel đã được dọn".
+
+Sửa: `tests/lib/host-sandbox.js` gom env sandbox (trước lặp ở ba file) và trả kèm
+`DOCKER_CONFIG` trỏ về HOME thật. Dùng `os.userInfo().homedir` chứ không `os.homedir()`
+— hàm sau đọc `$HOME` mà test vừa trỏ sang sandbox.
+
+Thêm hai vấn đề nữa trong `run-all.sh`:
+
+- **Host của bộ trước dọn tunnel của bộ sau.** Host đóng stdin còn chờ grace 15s rồi
+  `stopAll()`, xoá mọi container `vpnmgr-*` theo tiền tố tên. Chạy `host-registry` sát
+  `traffic` là `traffic` vỡ (tái hiện được, và pass lại khi chạy riêng). Thứ tự mặc
+  định thoát nạn chỉ nhờ `prune-ovpn` tình cờ chen giữa đủ lâu. Nay chờ đúng những host
+  bộ vừa rồi sinh ra — so PID trước/sau, không đếm tổng, vì host của Chrome người dùng
+  sống suốt phiên và đếm tổng là chờ vô ích tới hết giờ.
+- **`stop-chrome.sh` dọn state THẬT của user.** Nó xoá `~/.config/vpn-manager/hosts` và
+  `docker rm -f` mọi container `vpnmgr-*`. Các bộ cần trình duyệt phải thế (chúng chạy
+  với HOME thật), nhưng nó đang được gọi trước **mọi** bộ — kể cả năm bộ tự sandbox.
+  Hậu quả: xoá đăng ký của host Chrome đang sống, và sẽ giết tunnel thật nếu user đang
+  dùng. Đã giới hạn lại đúng phạm vi.
+
+#### Đã kiểm chứng tới đâu
+
+Installer 6 bước ✅ · gỡ rồi cài lại ✅ · native host do **Chrome thật** spawn ✅
+(tiến trình sống, PPID = Google Chrome) · tunnel OpenVPN thật ✅ · traffic qua SOCKS ra
+`203.0.113.10` trong khi trực tiếp là `198.51.100.20` ✅ · traffic ngoài tunnel không
+bị đổi đường ✅ · **69 test PASS / 0 FAIL** (platform 36, ovpn-store 9, prune-ovpn 8,
+host-registry 9, traffic 7).
+
+Luồng bấm tay trong popup cũng đã chạy trên macOS: import `.ovpn` qua UI, gạt công tắc
+domain, port-forward. Các bộ test **tự động** cần trình duyệt thì vẫn chỉ chạy trên
+Linux — `launch-chrome.sh` hardcode `chrome-linux64`, `DISPLAY` và extension id của
+Linux, `harness.js` giữ `EXT_ID` cố định trong khi id sinh theo đường dẫn.
+
+#### Code review bắt được một hồi quy do chính đợt sửa này gây ra
+
+Đợt sửa ở trên tự đẻ ra lỗi mới, review tìm ra:
+
+- **Bỏ `stop-chrome.sh` trước các bộ không cần trình duyệt đã giết mất sự cô lập.**
+  Thứ tự mặc định là `lifecycle` (dùng Chrome) ngay trước `host-registry`. Trước đây
+  `stop-chrome.sh` chạy đầu MỌI vòng lặp nên Chrome chắc chắn đã chết; sau khi sửa thì
+  Chrome sống xuyên ba bộ cuối, service worker rụng sau ~30s idle, host mất port rồi
+  hết grace 15s là `stopAll()` — xoá tunnel của bộ đang chạy. Tệ hơn: ba bộ đó rơi vào
+  nhánh `bail()` rồi `exit 0`, runner báo **TẤT CẢ PASS** trong khi chúng chưa chạy
+  dòng nào. Sửa đúng gốc: tách `stop-chrome.sh` thành phần giết Chrome (chạy sau MỌI
+  bộ, chỉ đụng `chrome.pid`) và phần dọn state thật (`--purge-state`, chỉ bộ dùng
+  trình duyệt).
+- **Thư mục cũng lọt qua `canExec`.** `fs.accessSync(p, X_OK)` trả true cho cả thư mục,
+  nên một thư mục tên `docker` trong PATH thắng binary thật rồi `execFile` ném EACCES —
+  và `docker-driver.js` cache kết quả sai đó suốt đời tiến trình. Windows còn dễ dính
+  hơn vì Node bỏ qua `X_OK` ở đó. Thêm `statSync().isFile()`.
+- **Trên Windows, `resolveExecutable` bỏ qua PATH hoàn toàn.** Production truyền tên
+  trần `docker`, nên không entry PATH nào khớp (libuv mới là bên gắn PATHEXT) và mọi
+  lần dò đều rơi xuống hai đường dẫn Docker Desktop hardcode. Nay tự thêm
+  `.exe`/`.cmd`/`.bat`, và **không** nhận tên trần — file `docker` không đuôi trong
+  PATH là shim sh của Git-Bash/MSYS, exec thẳng là chạy file không phải PE.
+- **Probe docker mới trong installer có thể chặn nhầm cài đặt trên Linux.** `env -i`
+  xoá cả `DOCKER_HOST`/`XDG_RUNTIME_DIR`, mà Docker rootless chọn socket qua đó. Nay
+  giữ lại các biến chọn endpoint, thêm timeout 20s, và trên Linux chỉ cảnh báo chứ
+  không `fail` — ở đó Chrome thường kế thừa env của session nên probe nghiêm hơn thực tế.
+- **`DOCKER_CONFIG` giới hạn lại cho macOS.** Trên Linux nó không cần (socket mặc định
+  vẫn đúng) mà lại kéo theo `credsStore` trỏ tới helper nằm ngoài PATH tối thiểu.
+- `os.userInfo()` ném lỗi khi uid không có entry trong passwd (container CI chạy uid
+  tuỳ ý) — thêm đường lui về `homedir()` chụp lúc nạp module.
+
+Ba ca vừa sửa đều có test mới phủ (`platform` 33 → 36 test).
+
+**Cần chạy lại trên Linux:** có sửa file dùng chung (`platform.js`, `docker-driver.js`,
+`scripts/lib/*.sh`, `tests/run-all.sh`, ba file test). Bộ cần trình duyệt chưa chạy lại.
+
+
 ## 1.8.0 — 2026-09-15
 
 ### Chuẩn bị publish

@@ -45,8 +45,9 @@ môi trường Chrome thật spawn native host):
 | UI/lifecycle | 9 | Giữ trạng thái popup, cuộn danh sách, tự tắt tunnel khi đóng Chrome |
 | multi-host | 9 | Nhiều trình duyệt: chỉ host cuối cùng mới được dọn tunnel |
 | ovpn | 22 | Parse, từ chối file chưa hỗ trợ, quyền 0600, kết nối thật bằng file |
-| platform | 24 | Đường dẫn và hành vi cho Linux/macOS/Windows, giả lập cả ba |
-| prune-ovpn | 7 | Dọn file .ovpn mồ côi qua native host thật, chặn payload thiếu keepIds |
+| platform | 36 | Đường dẫn và hành vi cho Linux/macOS/Windows, giả lập cả ba; nơi dò docker |
+| prune-ovpn | 8 | Dọn file .ovpn mồ côi qua native host thật, chặn payload thiếu keepIds |
+| traffic | 7 | Traffic có thật đi qua tunnel không, không cần trình duyệt |
 
 ## Phase 8 — docker cp thay bind-mount — ✅ Hoàn thành
 Cert vào container bằng `docker create` → `docker cp` → `docker start`, bỏ hẳn
@@ -66,15 +67,24 @@ directive lạ mà dựng lại sẽ làm mất.
 Các hàm nhận tham số nên giả lập được cả ba OS trên một máy.
 `check-prereqs` kiểm tra TUN bằng cách chạy container thật thay vì xem file trên host.
 
-## Phase 11 — Installer ba hệ điều hành — 🟡 Code xong, chờ verify
+## Phase 11 — Installer ba hệ điều hành — ✅ Hoàn thành
 Ba entry point: `install-linux.sh`, `install-macos.sh`, `install-windows.ps1`.
 Hai script bash dùng chung `lib/install-common.sh` để không lệch nhau khi sửa.
 Windows dùng PowerShell 5.1 + registry HKCU + `.bat` launcher.
 
 | | Linux | macOS | Windows |
 |---|---|---|---|
-| Installer | ✅ chạy thật | 🟡 chạy trên bash 3.2 giả lập | ⬜ chưa chạy |
-| Uninstaller | ✅ chạy thật | 🟡 giả lập | ⬜ chưa chạy |
+| Installer | ✅ chạy thật | ✅ macOS 26, Apple Silicon | ✅ Windows 11 + PS 5.1 |
+| Uninstaller | ✅ chạy thật | ✅ | ✅ |
+| Tunnel thật, traffic đúng IP VPN | ✅ | ✅ | ✅ |
+
+Cả Windows (2026-09-14) và macOS (2026-09-15) đều lộ ra cùng một loại lỗi khi chạy
+thật: **"PATH tối thiểu" mà Chrome cấp cho native host khác nhau ở mỗi OS**, và ở cả
+hai nơi `docker` đều nằm ngoài PATH đó. Trên macOS thêm ba lỗi ở chính bộ test do
+Docker Desktop không dùng `/var/run/docker.sock`. Chi tiết trong changelog 1.9.0.
+
+Còn lại: luồng bấm tay trong popup trên macOS, và port các bộ test cần trình duyệt
+sang macOS (`launch-chrome.sh` hardcode `chrome-linux64`, `DISPLAY`, extension id).
 
 ## Có thể làm tiếp (chưa cần)
 - Hỗ trợ OpenVPN xác thực user/password (hiện chỉ hỗ trợ certificate).
