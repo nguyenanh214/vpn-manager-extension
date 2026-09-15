@@ -1,6 +1,6 @@
 // Import file .ovpn: parse, từ chối file chưa hỗ trợ, quyền file, kết nối thật.
 import { execSync } from 'child_process';
-import { readFileSync, existsSync, statSync, writeFileSync, chmodSync, mkdirSync } from 'fs';
+import { readFileSync, existsSync, statSync, readdirSync } from 'fs';
 import { homedir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -10,7 +10,6 @@ const { ok, done } = counter();
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(HERE, 'fixtures');
 const PROFILE_DIR = join(homedir(), '.config', 'vpn-manager', 'profiles');
-const CERTS = join(homedir(), '.cert', 'nm-openvpn');
 
 const fixture = (n) => readFileSync(join(FIXTURES, `${n}.ovpn`), 'utf8');
 
@@ -57,47 +56,25 @@ ok((await msg('delete-vpn', { id: good.profile.id })).ok, 'xoá profile được
 await sleep(500);
 ok(!existsSync(saved), 'file .ovpn đã bị xoá khỏi đĩa, không để lại secret mồ côi');
 
-// Kết nối thật chỉ chạy được khi máy có cert dùng được. Sinh .ovpn tự chứa từ chúng,
-// giữ ngoài repo vì file này chứa private key thật.
-// Tiền tố tên file cert đi qua env: nó là tên profile VPN của người chạy test, không
-// có lý do gì nằm trong repo công khai. Ví dụ VPNMGR_TEST_CERT_PREFIX=MyVPN sẽ tìm
-// ~/.cert/nm-openvpn/MyVPN-{ca,cert,key,tls-crypt}.pem
-const CERT_PREFIX = process.env.VPNMGR_TEST_CERT_PREFIX || '';
-const liveCerts = ['ca', 'cert', 'key', 'tls-crypt']
-  .map((n) => join(CERTS, `${CERT_PREFIX}-${n}.pem`));
-if (!CERT_PREFIX || !liveCerts.every(existsSync)) {
-  console.log('\n--- 6. Kết nối thật: BỎ QUA (chưa đặt VPNMGR_TEST_CERT_PREFIX, hoặc không có cert) ---');
+// Kết nối thật: dùng thẳng file .ovpn có sẵn của người chạy test thay vì tự dựng một
+// file từ các PEM rời. Mục này kiểm luồng import + kết nối, nên file nào chạy được
+// cũng phục vụ đúng mục đích — mà lại không phải nhét gateway, tên profile hay CN cert
+// của ai vào repo công khai. Cùng nguồn với host-registry và traffic.
+let livePath = process.env.VPNMGR_TEST_OVPN || '';
+if (!livePath) {
+  try {
+    const first = readdirSync(PROFILE_DIR).filter((f) => f.endsWith('.ovpn')).sort()[0];
+    if (first) livePath = join(PROFILE_DIR, first);
+  } catch { /* chưa import gì bao giờ */ }
+}
+if (!livePath || !existsSync(livePath)) {
+  console.log(`\n--- 6. Kết nối thật: BỎ QUA (không có .ovpn nào trong ${PROFILE_DIR},`
+    + ' đặt VPNMGR_TEST_OVPN để chỉ định) ---');
   done();
 }
 
-// Gateway của máy chủ VPN cũng đi qua env, cùng lý do với IP lối ra: repo công khai.
-// Dạng "host port proto", ví dụ VPNMGR_TEST_REMOTE="vpn.example.net 1194 udp".
-const REMOTE = process.env.VPNMGR_TEST_REMOTE || '';
-if (!REMOTE) {
-  console.log('\n--- 6. Kết nối thật: BỎ QUA (chưa đặt VPNMGR_TEST_REMOTE) ---');
-  done();
-}
-
-console.log('\n--- 6. Kết nối thật bằng file .ovpn ---');
-const live = [
-  'client', 'dev tun', `proto ${REMOTE.split(/\s+/)[2] || 'udp'}`,
-  `remote ${REMOTE}`,
-  'resolv-retry infinite', 'nobind', 'persist-key', 'persist-tun',
-  'remote-cert-tls server', 'auth SHA256',
-  'data-ciphers AES-128-GCM:AES-256-GCM', 'data-ciphers-fallback AES-128-GCM',
-  // CN của cert máy chủ cũng riêng từng người; bỏ qua verify-x509-name nếu không đặt.
-  ...(process.env.VPNMGR_TEST_SERVER_CN
-    ? [`verify-x509-name ${process.env.VPNMGR_TEST_SERVER_CN} name`] : []),
-  'tls-version-min 1.2',
-  'ignore-unknown-option block-outside-dns', 'verb 3',
-  ...['ca', 'cert', 'key', 'tls-crypt'].map((tag, i) =>
-    `<${tag}>\n${readFileSync(liveCerts[i], 'utf8').trim()}\n</${tag}>`),
-].join('\n') + '\n';
-
-const livePath = join(homedir(), '.cache', 'vpnmgr-live-test.ovpn');
-mkdirSync(dirname(livePath), { recursive: true });
-writeFileSync(livePath, live, { mode: 0o600 });
-chmodSync(livePath, 0o600);
+console.log(`\n--- 6. Kết nối thật bằng file .ovpn (${livePath}) ---`);
+const live = readFileSync(livePath, 'utf8');
 
 const imported = await msg('import-ovpn', { name: 'Live OVPN', content: live });
 ok(imported.ok, 'import file .ovpn thật', imported.error || JSON.stringify(imported.errors));

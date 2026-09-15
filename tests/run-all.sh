@@ -4,7 +4,34 @@
 set -uo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(dirname "$TESTS_DIR")"
 SUITES="${*:-platform ovpn-store popup ovpn routing forwards lifecycle host-registry prune-ovpn traffic}"
+
+# Các bộ dựng tunnel THẬT cần một file .ovpn chạy được. Đường dẫn đó và IP lối ra là
+# của riêng từng máy nên không nằm trong repo — chúng ở .env, file này tự nạp.
+if [ -f "$REPO_DIR/.env" ]; then
+  set -a; . "$REPO_DIR/.env"; set +a
+fi
+
+# Báo NGAY từ đầu, trước khi chạy: thiếu cấu hình thì các bộ nặng sẽ tự bỏ qua và in
+# "TẤT CẢ PASS" — dễ tưởng là đã kiểm xong trong khi chưa chạy dòng nào.
+echo "--- Cấu hình ---"
+if [ -n "${VPNMGR_TEST_OVPN:-}" ]; then
+  echo "  VPNMGR_TEST_OVPN   = $VPNMGR_TEST_OVPN"
+else
+  echo "  VPNMGR_TEST_OVPN   chưa đặt — sẽ tự lấy file .ovpn đầu tiên trong profiles"
+fi
+if [ -n "${VPNMGR_TEST_EXIT_IP:-}" ]; then
+  echo "  VPNMGR_TEST_EXIT_IP= $VPNMGR_TEST_EXIT_IP"
+else
+  echo "  VPNMGR_TEST_EXIT_IP chưa đặt — chỉ kiểm traffic CÓ đổi lối ra, không so đúng IP"
+fi
+if [ ! -f "$REPO_DIR/.env" ]; then
+  echo
+  echo "  Chưa có .env. Muốn kiểm chặt (so đúng IP lối ra) thì:"
+  echo "      cp .env.example .env    rồi điền vào"
+fi
+echo
 total_fail=0
 any_browser=0
 

@@ -8,3 +8,6 @@
 node_modules/
 *.log
 .DS_Store
+
+# Cấu hình test cục bộ — chứa đường dẫn và IP riêng của từng máy
+.env

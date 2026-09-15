@@ -45,21 +45,32 @@ tests/run-all.sh              # tất cả
 tests/run-all.sh platform     # một bộ
 ```
 
-Repo công khai nên **không nhúng IP máy chủ VPN vào test**. Ba bộ dùng trình duyệt lấy
-qua env; thiếu thì chúng vẫn kiểm được tính chất quan trọng nhất (traffic có đổi lối ra
-không), chỉ bỏ phần so đúng IP:
+### 🔴 Trước khi chạy test: kiểm `.env`
 
-| Biến | Dùng ở đâu |
-|---|---|
-| `VPNMGR_TEST_OVPN` | `host-registry`, `traffic` — đường dẫn file `.ovpn` |
-| `VPNMGR_TEST_REMOTE` | `ovpn` — `"host port proto"`, thiếu thì bỏ qua mục kết nối thật |
-| `VPNMGR_TEST_EXIT_IP` | `ovpn`, `routing`, `forwards` — IP lối ra mong đợi |
-| `VPNMGR_TEST_CERT_PREFIX` | `ovpn` — tiền tố cert trong `~/.cert/nm-openvpn/` |
-| `VPNMGR_TEST_SERVER_CN` | `ovpn` — CN cert máy chủ cho `verify-x509-name` |
+Các bộ dựng tunnel THẬT cần một file `.ovpn` chạy được. Đường dẫn đó và IP lối ra là
+dữ liệu riêng của từng máy nên **không nằm trong repo**.
 
-Năm bộ không cần trình duyệt, chạy được trên cả ba OS — kể cả Windows. **69 test này
-đã chạy thật trên macOS**, pass hết. macOS cần `brew install coreutils` nếu muốn có
-`gtimeout`; không có thì runner vẫn chạy, chỉ mất giới hạn thời gian:
+**Nếu bạn là session mới và sắp chạy test:** kiểm `.env` ở gốc repo trước.
+
+```bash
+ls .env    # không có -> HỎI USER, đừng tự tạo
+```
+
+Không có `.env` thì **báo user và dừng lại**, đừng tự điền: chỉ user mới biết đường
+dẫn `.ovpn` và IP lối ra của máy họ. Bảo họ chạy `cp .env.example .env` rồi điền, xong
+mới chạy test.
+
+Thiếu `.env` thì test **vẫn chạy và vẫn in "TẤT CẢ PASS"** — vì các bộ nặng tự bỏ qua
+khi không có `.ovpn`. Đó là cái bẫy: xanh nhưng chưa kiểm gì. `run-all.sh` in trạng
+thái cấu hình ngay dòng đầu, đọc nó trước khi tin kết quả.
+
+| Biến | Bắt buộc | Dùng ở đâu |
+|---|---|---|
+| `VPNMGR_TEST_OVPN` | gần như | `ovpn`, `routing`, `forwards`, `host-registry`, `traffic` — file `.ovpn` tự chứa. Bỏ trống thì tự lấy file đầu tiên trong thư mục profiles |
+| `VPNMGR_TEST_EXIT_IP` | không | so ĐÚNG IP lối ra. Bỏ trống thì chỉ kiểm traffic CÓ đổi lối ra |
+
+`.env` đã nằm trong `.gitignore`. **Không bao giờ commit nó**, cũng không chép nội dung
+nó vào báo cáo hay commit message.
 
 - `platform` (36 test) — giả lập cả ba OS
 - `ovpn-store` (9 test) — dọn file .ovpn mồ côi, chạy trong sandbox bằng cách trỏ
