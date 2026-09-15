@@ -18,6 +18,7 @@ import { tmpdir } from 'os';
 import { dirname, join as pjoin } from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import { sandboxEnv, dockerContextEnv } from './lib/host-sandbox.js';
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
 const require = createRequire(import.meta.url);
@@ -46,11 +47,14 @@ const done = (code) => { rmSync(SANDBOX, { recursive: true, force: true }); proc
 // Chốt chặn: host mồ côi sẽ stopAll() sau 15s, giết tunnel thật của user.
 // execFileSync chứ không execSync — cmd.exe không coi nháy đơn là dấu nháy, chuỗi
 // kiểu shell POSIX vỡ thành "invalid filter" ngay trên Windows.
+// dockerContextEnv: process.env.HOME vừa bị trỏ sang sandbox ở trên, mà Docker
+// Desktop trên macOS chọn socket qua context nằm trong HOME thật. Thiếu nó thì lệnh
+// dưới đây LUÔN ném lỗi, chốt chặn im lặng tắt ngóm và test giết tunnel thật.
 let running = '';
 try {
   running = execFileSync('docker',
     ['ps', '--filter', 'name=^vpnmgr-', '--format', '{{.Names}}'],
-    { encoding: 'utf8' }).trim();
+    { encoding: 'utf8', env: { ...process.env, ...dockerContextEnv() } }).trim();
 } catch { /* không có Docker thì cũng không có tunnel để mất */ }
 if (running) {
   console.log(`  BỎ QUA: đang có tunnel chạy (${running}). Host mồ côi sẽ dọn mất nó.`);
@@ -59,16 +63,7 @@ if (running) {
 
 const LAUNCHER = pjoin(REPO, 'native-host', platform.hostLauncher());
 const isWin = process.platform === 'win32';
-const sysRoot = process.env.SystemRoot || process.env.windir || 'C:/Windows';
-// PATH tối thiểu giống cách Chrome spawn host. Trên Windows phải kèm system32 cho
-// cmd.exe, và thư mục node vì APPDATA sandbox không có file node-path.
-const childEnv = isWin
-  ? {
-    APPDATA: SANDBOX, HOME: SANDBOX, SystemRoot: sysRoot,
-    USERNAME: process.env.USERNAME || '',
-    PATH: [dirname(process.execPath), pjoin(sysRoot, 'system32'), sysRoot].join(';'),
-  }
-  : { HOME: SANDBOX, PATH: '/usr/bin:/bin' };
+const childEnv = sandboxEnv(SANDBOX);
 // Node từ chối spawn .bat trực tiếp; đi qua cmd.exe bằng mảng tham số, không nội suy.
 const [cmd, args] = isWin
   ? [process.env.COMSPEC || 'cmd.exe', ['/d', '/s', '/c', LAUNCHER]]

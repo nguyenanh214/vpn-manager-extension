@@ -71,4 +71,68 @@ ok(P.pathsEqual('C:\\Users\\A', 'c:\\users\\a', 'win32') === true,
 ok(P.pathsEqual('/home/A', '/home/a', 'linux') === false,
    'Linux phân biệt hoa thường');
 
+console.log('\n--- nơi dò docker ---');
+const macDocker = P.dockerSearchPaths('darwin', {}, '/Users/apple');
+ok(macDocker[0] === '/usr/local/bin/docker',
+   'macOS tìm symlink Docker Desktop ở /usr/local/bin trước', macDocker[0]);
+ok(macDocker.includes('/Users/apple/.docker/bin/docker'),
+   'macOS có dò ~/.docker/bin (bản cài cho riêng user)');
+ok(macDocker.some((d) => d.startsWith('/Applications/Docker.app')),
+   'macOS có dò thẳng vào trong Docker.app');
+const winDocker = P.dockerSearchPaths('win32', WIN_ENV, WIN_HOME);
+ok(winDocker.every((d) => d.endsWith('.exe')), 'Windows dò .exe', winDocker[0]);
+ok(P.dockerSearchPaths('linux', {}, '/home/user')[0] === '/usr/bin/docker',
+   'Linux tìm /usr/bin trước');
+
+console.log('\n--- resolveExecutable ---');
+// isExec giả: chỉ những đường dẫn liệt kê ở đây mới coi là chạy được.
+const fake = (paths) => (p) => paths.includes(p);
+
+ok(P.resolveExecutable('docker', [], { PATH: '/usr/bin:/bin' }, 'darwin',
+     fake(['/bin/docker'])) === '/bin/docker',
+   'có trong PATH thì dùng PATH');
+
+// Đúng tình huống macOS thật: PATH của launchd không chứa /usr/local/bin.
+const launchdPath = '/usr/bin:/bin:/usr/sbin:/sbin';
+ok(P.resolveExecutable('docker', P.dockerSearchPaths('darwin', {}, '/Users/apple'),
+     { PATH: launchdPath }, 'darwin', fake(['/usr/local/bin/docker']))
+   === '/usr/local/bin/docker',
+   'PATH của launchd không có docker -> rơi về /usr/local/bin');
+
+ok(P.resolveExecutable('docker', ['/opt/homebrew/bin/docker'],
+     { PATH: launchdPath }, 'darwin', fake([])) === 'docker',
+   'không tìm thấy thì trả lại tên trần để ENOENT nổi lên ở chỗ gọi');
+
+ok(P.resolveExecutable('docker.exe', [], { Path: 'C:\\Windows;C:\\tools' }, 'win32',
+     fake(['C:\\tools\\docker.exe'])) === 'C:\\tools\\docker.exe',
+   'Windows tách PATH bằng dấu ; và đọc được biến Path');
+
+// Production truyền tên TRẦN ('docker'), không phải 'docker.exe' — đây mới là đường
+// code thật trên Windows. Quét PATH phải tự thêm đuôi, nếu không thì không entry nào
+// khớp và cả PATH bị bỏ qua.
+ok(P.resolveExecutable('docker', [], { Path: 'C:\\tools' }, 'win32',
+     fake(['C:\\tools\\docker.exe'])) === 'C:\\tools\\docker.exe',
+   'Windows tự thêm .exe cho tên trần');
+
+// File `docker` không đuôi trong PATH là shim sh của Git-Bash/MSYS/WSL. Exec thẳng nó
+// là chạy một file không phải PE; PATHEXT cũng không bao giờ khớp tên trần.
+ok(P.resolveExecutable('docker', ['C:\\DD\\docker.exe'], { Path: 'C:\\msys' }, 'win32',
+     fake(['C:\\msys\\docker', 'C:\\DD\\docker.exe'])) === 'C:\\DD\\docker.exe',
+   'Windows bỏ qua shim không đuôi, rơi về Docker Desktop');
+
+console.log('\n--- canExec: thư mục KHÔNG phải executable ---');
+// accessSync(X_OK) trả true cho cả thư mục, nên một thư mục tên `docker` trong PATH
+// từng thắng cả binary thật rồi execFile ném EACCES. Dùng canExec THẬT, không giả lập.
+{
+  const { mkdtempSync, mkdirSync, rmSync } = await import('fs');
+  const { tmpdir } = await import('os');
+  const { join } = await import('path');
+  const box = mkdtempSync(join(tmpdir(), 'vpnmgr-canexec-'));
+  mkdirSync(join(box, 'docker'));
+  ok(P.resolveExecutable('docker', ['/usr/bin/env'], { PATH: box }, 'linux') === '/usr/bin/env',
+     'thư mục tên docker trong PATH bị bỏ qua',
+     P.resolveExecutable('docker', ['/usr/bin/env'], { PATH: box }, 'linux'));
+  rmSync(box, { recursive: true, force: true });
+}
+
 done();

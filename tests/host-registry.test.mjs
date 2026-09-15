@@ -20,6 +20,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import { counter, sleep } from './lib/harness.js';
+import { sandboxEnv, dockerContextEnv } from './lib/host-sandbox.js';
 
 const { ok, state } = counter();
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -35,9 +36,15 @@ const SANDBOX = realpathSync(mkdtempSync(join(tmpdir(), 'vpnmgr-registry-')));
 const cleanup = () => rmSync(SANDBOX, { recursive: true, force: true });
 const bail = (msg) => { console.log(msg); cleanup(); process.exit(0); };
 
+// dockerContextEnv: từ dòng process.env.HOME = SANDBOX trở xuống, docker CLI trên
+// macOS mất context (Docker Desktop không dùng /var/run/docker.sock) và lệnh nào
+// cũng ném lỗi. Hàm này nuốt lỗi, nên hậu quả là mọi phép kiểm container đều thấy
+// "trống" — vừa báo sai vừa PASS sai ở bước kiểm tunnel đã dọn.
 const dockerOut = (args) => {
-  try { return execFileSync('docker', args, { encoding: 'utf8' }).trim(); }
-  catch { return ''; }
+  try {
+    return execFileSync('docker', args,
+      { encoding: 'utf8', env: { ...process.env, ...dockerContextEnv() } }).trim();
+  } catch { return ''; }
 };
 const containers = () => dockerOut(['ps', '--filter', 'name=^vpnmgr-', '--format', '{{.Names}}']);
 
@@ -82,19 +89,8 @@ console.log(`  cấu hình: ${source} -> ${PROFILE.gateway} (${PROFILE.proto})`)
 const registered = () => { try { return readdirSync(HOSTS_DIR); } catch { return []; } };
 
 const isWin = process.platform === 'win32';
-const sysRoot = process.env.SystemRoot || process.env.windir || 'C:/Windows';
 const LAUNCHER = join(REPO, 'native-host', platform.hostLauncher());
-// Linux: Chrome spawn host đúng với PATH này, và docker nằm sẵn trong /usr/bin.
-// Windows: Chrome truyền nguyên PATH của user chứ không cắt bớt, mà docker.exe nằm
-// trong thư mục cài Docker Desktop — cắt PATH là host báo "spawn docker ENOENT".
-// Thư mục node đứng trước vì APPDATA sandbox không có file node-path.
-const childEnv = isWin
-  ? {
-    APPDATA: SANDBOX, HOME: SANDBOX, SystemRoot: sysRoot,
-    USERNAME: process.env.USERNAME || '', USERPROFILE: process.env.USERPROFILE || '',
-    PATH: [dirname(process.execPath), process.env.PATH || ''].join(';'),
-  }
-  : { HOME: SANDBOX, PATH: '/usr/bin:/bin' };
+const childEnv = sandboxEnv(SANDBOX, { docker: true });
 
 function spawnHost() {
   // Node từ chối spawn .bat trực tiếp; đi qua cmd.exe bằng mảng tham số.
