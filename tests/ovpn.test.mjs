@@ -66,10 +66,18 @@ if (!liveCerts.every(existsSync)) {
   done();
 }
 
+// Gateway của máy chủ VPN cũng đi qua env, cùng lý do với IP lối ra: repo công khai.
+// Dạng "host port proto", ví dụ VPNMGR_TEST_REMOTE="vpn.example.net 1194 udp".
+const REMOTE = process.env.VPNMGR_TEST_REMOTE || '';
+if (!REMOTE) {
+  console.log('\n--- 6. Kết nối thật: BỎ QUA (chưa đặt VPNMGR_TEST_REMOTE) ---');
+  done();
+}
+
 console.log('\n--- 6. Kết nối thật bằng file .ovpn ---');
 const live = [
-  'client', 'dev tun', 'proto udp',
-  'remote 203.0.113.10 11194 udp',
+  'client', 'dev tun', `proto ${REMOTE.split(/\s+/)[2] || 'udp'}`,
+  `remote ${REMOTE}`,
   'resolv-retry infinite', 'nobind', 'persist-key', 'persist-tun',
   'remote-cert-tls server', 'auth SHA256',
   'data-ciphers AES-128-GCM:AES-256-GCM', 'data-ciphers-fallback AES-128-GCM',
@@ -111,8 +119,10 @@ for (let i = 0; i < 8 && !viaVpn; i++) {
 }
 console.log(`   IP thật    : ${real}`);
 console.log(`   qua tunnel : ${viaVpn}`);
-ok(viaVpn === '203.0.113.10', 'traffic thoát bằng IP VPN', viaVpn || '(rỗng)');
-ok(viaVpn !== real, 'khác IP thật');
+ok(viaVpn !== '' && viaVpn !== real, 'traffic thoát bằng IP khác IP thật', viaVpn || '(rỗng)');
+if (process.env.VPNMGR_TEST_EXIT_IP) {
+  ok(viaVpn === process.env.VPNMGR_TEST_EXIT_IP, 'đúng IP VPN mong đợi', viaVpn);
+}
 
 page.close();
 done();

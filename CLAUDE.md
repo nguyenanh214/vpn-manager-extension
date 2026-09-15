@@ -45,6 +45,16 @@ tests/run-all.sh              # tất cả
 tests/run-all.sh platform     # một bộ
 ```
 
+Repo công khai nên **không nhúng IP máy chủ VPN vào test**. Ba bộ dùng trình duyệt lấy
+qua env; thiếu thì chúng vẫn kiểm được tính chất quan trọng nhất (traffic có đổi lối ra
+không), chỉ bỏ phần so đúng IP:
+
+| Biến | Dùng ở đâu |
+|---|---|
+| `VPNMGR_TEST_OVPN` | `host-registry`, `traffic` — đường dẫn file `.ovpn` |
+| `VPNMGR_TEST_REMOTE` | `ovpn` — `"host port proto"`, thiếu thì bỏ qua mục kết nối thật |
+| `VPNMGR_TEST_EXIT_IP` | `ovpn`, `routing`, `forwards` — IP lối ra mong đợi |
+
 Năm bộ không cần trình duyệt, chạy được trên cả ba OS — kể cả Windows. **69 test này
 đã chạy thật trên macOS**, pass hết. macOS cần `brew install coreutils` nếu muốn có
 `gtimeout`; không có thì runner vẫn chạy, chỉ mất giới hạn thời gian:

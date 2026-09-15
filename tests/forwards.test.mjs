@@ -47,6 +47,7 @@ ok(on.ok && on.tunnels[vpn.id]?.status === 'on', 'tunnel lên', JSON.stringify(o
 const ports = () => execSync(`docker ps --filter name=^vpnmgr- --format '{{.Ports}}'`).toString();
 ok(ports().includes('15380'), 'cổng 15380 được publish', ports().trim());
 
+const EXPECT_EXIT_IP = process.env.VPNMGR_TEST_EXIT_IP || '';
 const real = execSync(`curl -s --max-time 10 http://ifconfig.me/ip`).toString().trim();
 let viaFwd = '';
 for (let i = 0; i < 8 && !viaFwd; i++) {
@@ -58,8 +59,13 @@ for (let i = 0; i < 8 && !viaFwd; i++) {
 }
 console.log(`   IP thật             : ${real}`);
 console.log(`   qua 127.0.0.1:15380 : ${viaFwd}`);
-ok(viaFwd === '203.0.113.10', 'forward thoát bằng IP VPN', viaFwd || '(rỗng)');
-ok(viaFwd !== real, 'khác IP thật');
+// IP lối ra lấy từ env chứ không nhúng vào repo: repo công khai, mà IP máy chủ VPN
+// của người chạy test không có lý do gì nằm trong đó. Không đặt env thì vẫn kiểm được
+// tính chất thật sự quan trọng — traffic có ĐỔI lối ra hay không.
+ok(viaFwd !== '' && viaFwd !== real, 'forward thoát bằng IP khác IP thật', viaFwd || '(rỗng)');
+if (EXPECT_EXIT_IP) {
+  ok(viaFwd === EXPECT_EXIT_IP, 'đúng IP VPN mong đợi', `${viaFwd} vs ${EXPECT_EXIT_IP}`);
+}
 
 console.log('\n--- 5. Sửa forward -> container dựng lại với cổng mới ---');
 const upd = await msg('update-forward', {

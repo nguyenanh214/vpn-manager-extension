@@ -39,13 +39,19 @@ async function visit(url, { retries = 3 } = {}) {
   return '';
 }
 
+const EXPECT_EXIT_IP = process.env.VPNMGR_TEST_EXIT_IP || '';
+
 console.log('\n--- Traffic thật của trình duyệt ---');
 const viaVpn = await visit('https://api.ipify.org');
 const direct = await visit('https://icanhazip.com');
 console.log(`  api.ipify.org  (trong list) -> ${viaVpn}`);
 console.log(`  icanhazip.com  (ngoài list) -> ${direct}`);
 
-ok(viaVpn === '203.0.113.10', 'domain trong list thoát bằng IP VPN', viaVpn);
+// Xem chú thích cùng chủ đề trong forwards.test.mjs: IP lối ra đi qua env.
+ok(viaVpn !== '' && viaVpn !== direct, 'domain trong list thoát bằng IP khác', viaVpn);
+if (EXPECT_EXIT_IP) {
+  ok(viaVpn === EXPECT_EXIT_IP, 'đúng IP VPN mong đợi', `${viaVpn} vs ${EXPECT_EXIT_IP}`);
+}
 ok(direct !== '' && direct !== viaVpn, 'domain ngoài list đi thẳng, KHÔNG qua VPN', direct);
 ok(viaVpn !== direct, 'hai domain thoát bằng hai IP khác nhau');
 
