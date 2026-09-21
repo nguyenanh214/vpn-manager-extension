@@ -25,6 +25,8 @@ export const DEFAULT_STATE = {
   forwards: [],
   ui: {
     activeTab: 'domains',
+    // Lỗi tunnel người dùng đã bấm tắt: { [vpnId]: 'dòng nguyên nhân' }
+    dismissedErrors: {},
     addDomainOpen: false,
     addDomainDraft: '',
     addVpnOpen: false,

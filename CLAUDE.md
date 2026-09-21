@@ -38,7 +38,7 @@ Kế hoạch: [plans/260914-1343-cross-platform-va-ovpn-import/plan.md](plans/26
 
 ## Kiểm thử
 
-184 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
+204 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
 
 ```bash
 tests/run-all.sh              # tất cả
@@ -75,6 +75,8 @@ nó vào báo cáo hay commit message.
 - `import-page` (10 test) — trang import `.ovpn` chạy trong tab. Nạp file vào
   `<input type="file">` bằng `DataTransfer` rồi submit form thật, nên phủ cả lớp
   giao diện mà bộ `ovpn` bỏ qua. Không cần Docker
+- `dismiss-error` (20 test) — nút × tắt khối lỗi tunnel. Cần trình duyệt: gọi thẳng
+  `dismissibleError` trong trang thật qua CDP vì không dựng được tunnel hỏng theo ý muốn
 - `tunnel-diagnosis` (32 test) — vì sao tunnel không lên. Sinh cert tại chỗ trong
   thư mục tạm và TIÊM đồng hồ để giả lập hết hạn: OpenSSL 3.0 không đặt được
   notAfter trong quá khứ (`-not_after` chỉ có từ 3.2). Không cần Docker

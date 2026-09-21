@@ -65,6 +65,43 @@ export function flashError(node, message, ms = 3500) {
   node._flashTimer = setTimeout(() => { node.hidden = true; }, ms);
 }
 
+/** Giữ map dismiss khỏi phình vô hạn khi profile bị xoá đi tạo lại nhiều lần. */
+const MAX_DISMISSED = 20;
+
+/**
+ * Khối lỗi tunnel có nút × để tắt.
+ *
+ * Lỗi tunnel giờ kèm cả log OpenVPN nên có thể dài vài chục dòng — đủ để đẩy toàn bộ
+ * danh sách trôi khỏi tầm nhìn của popup (chỉ cao 560px).
+ *
+ * Chỉ nhớ DÒNG ĐẦU chứ không nhớ cả khối: log OpenVPN có timestamp nên cả khối đổi
+ * sau mỗi lần poll, nhớ cả khối thì nút × không bao giờ dính quá một nhịp render.
+ * Dòng đầu là câu nguyên nhân — cùng nguyên nhân thì im luôn, đổi nguyên nhân thì
+ * hiện lại vì đó là thông tin mới.
+ *
+ * @returns {HTMLElement|null} null khi không có lỗi, hoặc lỗi này đã bị tắt.
+ */
+export function dismissibleError(key, message, ui = {}) {
+  if (!message || !key) return null;
+  const cause = String(message).split('\n')[0];
+  const dismissed = ui.dismissedErrors || {};
+  if (dismissed[key] === cause) return null;
+
+  const box = el('div', { class: 'row-sub error err-box' }, [
+    el('div', { text: message }),
+    el('button', {
+      class: 'icon-btn err-x', title: 'Ẩn lỗi này', text: '×',
+      onclick: (e) => {
+        e.stopPropagation();
+        box.remove();
+        const next = Object.entries({ ...dismissed, [key]: cause }).slice(-MAX_DISMISSED);
+        call('set-ui', { ui: { dismissedErrors: Object.fromEntries(next) } });
+      },
+    }),
+  ]);
+  return box;
+}
+
 export const TUNNEL_LABEL = {
   off: 'Tắt',
   connecting: 'Đang kết nối…',

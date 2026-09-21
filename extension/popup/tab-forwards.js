@@ -2,7 +2,7 @@
 // bên trong VPN. Dành cho client không nói được SOCKS5 — Navicat, DBeaver, psql...
 // Client chỉ cần trỏ tới 127.0.0.1:<cổng cục bộ>, không cấu hình proxy gì.
 
-import { call, el, clear, flashError, TUNNEL_LABEL } from './ui-helpers.js';
+import { call, el, clear, flashError, dismissibleError, TUNNEL_LABEL } from './ui-helpers.js';
 
 const FIELDS = ['label', 'localPort', 'remoteHost', 'remotePort'];
 
@@ -28,7 +28,7 @@ function vpnSelect(forward, profiles) {
   return select;
 }
 
-function forwardRow(forward, profiles, tunnels, errorSlot) {
+function forwardRow(forward, profiles, tunnels, errorSlot, ui) {
   const tunnel = forward.vpnId ? (tunnels[forward.vpnId] || { status: 'off' }) : { status: 'off' };
   const status = forward.enabled ? tunnel.status : 'off';
 
@@ -57,9 +57,11 @@ function forwardRow(forward, profiles, tunnels, errorSlot) {
   // Tooltip giữ dạng đầy đủ để copy.
   const route = `:${forward.localPort} → ${forward.remoteHost}:${forward.remotePort}`;
   const routeFull = `127.0.0.1:${forward.localPort} → ${forward.remoteHost}:${forward.remotePort}`;
-  const subtitle = status === 'error'
-    ? el('div', { class: 'row-sub error', text: tunnel.error || 'Tunnel lỗi' })
-    : el('div', { class: 'row-sub mono-sm', title: routeFull, text: route });
+  // Tắt lỗi đi thì về dòng route; chấm đỏ và viền vẫn giữ dấu hiệu lỗi.
+  const errBox = status === 'error'
+    ? dismissibleError(forward.vpnId, tunnel.error || 'Tunnel lỗi', ui) : null;
+  const subtitle = errBox
+    || el('div', { class: 'row-sub mono-sm', title: routeFull, text: route });
 
   return el('div', { class: 'row' + (status === 'error' ? ' is-error' : '') }, [
     el('div', { class: 'row-main' }, [
@@ -101,7 +103,7 @@ export function renderForwards(state, tunnels) {
   }
 
   for (const forward of state.forwards) {
-    list.append(forwardRow(forward, state.vpnProfiles, tunnels, errorSlot));
+    list.append(forwardRow(forward, state.vpnProfiles, tunnels, errorSlot, state.ui));
   }
   list.scrollTop = scrollTop;
 }

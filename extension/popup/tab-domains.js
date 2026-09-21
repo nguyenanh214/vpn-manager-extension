@@ -1,6 +1,6 @@
 // Tab chính: danh sách domain + select VPN + công tắc bật/tắt.
 
-import { call, el, clear, flashError, TUNNEL_LABEL } from './ui-helpers.js';
+import { call, el, clear, flashError, dismissibleError, TUNNEL_LABEL } from './ui-helpers.js';
 
 let refresh = () => {};
 export function bindRefresh(fn) { refresh = fn; }
@@ -24,7 +24,7 @@ function vpnSelect(domain, profiles) {
   return select;
 }
 
-function domainRow(domain, profiles, tunnels, errorSlot) {
+function domainRow(domain, profiles, tunnels, errorSlot, ui) {
   const tunnel = domain.vpnId ? (tunnels[domain.vpnId] || { status: 'off' }) : { status: 'off' };
   const status = domain.enabled ? tunnel.status : 'off';
 
@@ -50,9 +50,12 @@ function domainRow(domain, profiles, tunnels, errorSlot) {
     },
   });
 
-  const subtitle = status === 'error'
-    ? el('div', { class: 'row-sub', text: tunnel.error || 'Tunnel lỗi' })
-    : el('div', { class: 'row-sub', text: domain.enabled ? TUNNEL_LABEL[status] : 'Tắt' });
+  // Tắt lỗi đi thì về dòng trạng thái ngắn; chấm đỏ và viền vẫn còn nên dòng
+  // không hề mất dấu hiệu lỗi.
+  const errBox = status === 'error'
+    ? dismissibleError(domain.vpnId, tunnel.error || 'Tunnel lỗi', ui) : null;
+  const subtitle = errBox
+    || el('div', { class: 'row-sub', text: domain.enabled ? TUNNEL_LABEL[status] : 'Tắt' });
 
   return el('div', { class: 'row' + (status === 'error' ? ' is-error' : '') }, [
     el('div', { class: 'row-main' }, [
@@ -86,7 +89,7 @@ export function renderDomains(state, tunnels) {
   }
 
   for (const domain of state.domains) {
-    list.append(domainRow(domain, state.vpnProfiles, tunnels, errorSlot));
+    list.append(domainRow(domain, state.vpnProfiles, tunnels, errorSlot, state.ui));
   }
   list.scrollTop = scrollTop;
 }

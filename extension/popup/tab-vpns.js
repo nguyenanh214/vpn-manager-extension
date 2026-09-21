@@ -1,6 +1,6 @@
 // Tab phụ: quản lý VPN profile, import từ NetworkManager, test kết nối.
 
-import { call, el, clear, flashError, showModal, closeModal, TUNNEL_LABEL } from './ui-helpers.js';
+import { call, el, clear, flashError, dismissibleError, showModal, closeModal, TUNNEL_LABEL } from './ui-helpers.js';
 import { setupOvpnImport } from './ovpn-import.js';
 
 const FORM_FIELDS = ['name', 'gateway', 'ca', 'cert', 'key', 'tlsCrypt', 'cipher', 'auth'];
@@ -33,7 +33,7 @@ function showTestResult(profile, res) {
   ]));
 }
 
-function vpnRow(profile, tunnels, errorSlot) {
+function vpnRow(profile, tunnels, errorSlot, ui) {
   const tunnel = tunnels[profile.id] || { status: 'off' };
 
   const testBtn = el('button', {
@@ -59,7 +59,7 @@ function vpnRow(profile, tunnels, errorSlot) {
           : (profile.source === 'nm' ? el('span', { class: 'badge', text: 'NM' }) : null),
       ]),
       el('div', { class: 'row-sub', text: `${profile.gateway} · SOCKS ${profile.socksPort} · ${TUNNEL_LABEL[tunnel.status]}` }),
-      tunnel.error ? el('div', { class: 'row-sub error', text: tunnel.error }) : null,
+      dismissibleError(profile.id, tunnel.error, ui),
     ]),
     testBtn,
     el('button', {
@@ -92,7 +92,9 @@ export function renderVpns(state, tunnels) {
     list.append(el('div', { class: 'empty', text: `Chưa có VPN nào. ${ways}` }));
     return;
   }
-  for (const profile of state.vpnProfiles) list.append(vpnRow(profile, tunnels, errorSlot));
+  for (const profile of state.vpnProfiles) {
+    list.append(vpnRow(profile, tunnels, errorSlot, state.ui));
+  }
 }
 
 /** Danh sách connection OpenVPN đọc được từ NetworkManager; cái hỏng thì chặn import. */

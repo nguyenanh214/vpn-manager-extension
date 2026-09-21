@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.12.0 — 2026-09-21
+
+### Nút × tắt khối lỗi tunnel
+
+Từ 1.11.0 lỗi tunnel kèm cả log OpenVPN, nên khối lỗi dài vài chục dòng — đủ đẩy cả
+danh sách ra khỏi tầm nhìn của popup cao 560px. Đọc xong rồi vẫn phải chịu nó chiếm chỗ.
+
+Thêm `dismissibleError` trong `ui-helpers.js`, dùng chung cho cả ba tab (trước đó mỗi
+tab tự dựng khối lỗi riêng, cùng một đoạn lặp ba lần). Nút × neo góc trên bên phải.
+
+**Chỉ nhớ DÒNG ĐẦU của thông báo, không nhớ cả khối.** Log OpenVPN có timestamp nên cả
+khối đổi sau mỗi nhịp poll; nhớ cả khối thì nút × chỉ dính đúng một nhịp render rồi lỗi
+nhảy ra lại. Dòng đầu là câu nguyên nhân: cùng nguyên nhân thì im luôn, đổi nguyên nhân
+thì hiện lại vì đó là thông tin mới. Cũng nhờ vậy mà storage không phải chứa 30 dòng log.
+
+Lựa chọn lưu trong `ui.dismissedErrors` nên còn nguyên sau khi đóng mở lại popup — đóng
+rồi mà mở ra lại thấy y nguyên thì nút × gần như vô dụng, vì tunnel hỏng là hỏng liên tục.
+Giới hạn 20 mục để map không phình khi profile bị xoá đi tạo lại.
+
+Tắt lỗi KHÔNG làm dòng mất dấu hiệu hỏng: chấm đỏ và viền đỏ vẫn còn, dòng phụ lùi về
+trạng thái ngắn ("Lỗi", hoặc route với tab Forward).
+
+Thêm bộ `dismiss-error` (20 test).
+
 ## 1.11.0 — 2026-09-21
 
 ### Cert hết hạn: báo thẳng ngày, thay vì bắt đọc log

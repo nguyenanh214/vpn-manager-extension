@@ -167,3 +167,12 @@ select.vpn-select.needs-vpn { border-color: var(--danger); }
 #modal-body { overflow-y: auto; flex: 1; }
 .modal-actions { margin-top: 10px; display: flex; justify-content: flex-end; gap: 6px; }
 .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; }
+
+/* Lỗi tunnel kèm log OpenVPN dài vài chục dòng, đủ đẩy cả danh sách khỏi tầm nhìn.
+   Nút × neo góc trên phải để tắt ngay, chừa sẵn lề phải cho chữ khỏi chui xuống dưới. */
+.err-box { position: relative; padding-right: 18px; }
+.err-x {
+  position: absolute; top: -3px; right: -3px;
+  font-size: 14px; padding: 0 3px; color: var(--danger);
+}
+.err-x:hover { background: var(--bg); }
