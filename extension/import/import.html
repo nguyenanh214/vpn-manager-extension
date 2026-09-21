@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="../popup/popup.css">
+  <link rel="stylesheet" href="import.css">
+  <title>Import VPN từ file .ovpn</title>
+</head>
+<body class="page">
+  <main class="sheet">
+    <h1>Import VPN từ file .ovpn</h1>
+    <p class="row-sub">
+      Trang này mở trong tab riêng vì hộp thoại chọn file làm popup của extension
+      đóng lại giữa chừng.
+    </p>
+
+    <form id="form" class="add-form">
+      <label class="field">
+        <span class="field-label">File .ovpn</span>
+        <input id="file" class="input" type="file" accept=".ovpn,.conf,.txt" required>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Tên VPN</span>
+        <input id="name" class="input" placeholder="Tự điền theo tên file" autocomplete="off">
+      </label>
+
+      <button id="submit" type="submit" class="btn btn-primary btn-block">Import</button>
+    </form>
+
+    <div id="result" hidden></div>
+
+    <p class="row-sub hint">
+      File phải <strong>tự chứa</strong> — có sẵn các khối
+      <code>&lt;ca&gt;</code>, <code>&lt;cert&gt;</code>, <code>&lt;key&gt;</code> bên trong.
+      File trỏ tới certificate bên ngoài hoặc cần username/password sẽ bị từ chối
+      kèm lý do cụ thể.
+    </p>
+  </main>
+
+  <script type="module" src="import.js"></script>
+</body>
+</html>

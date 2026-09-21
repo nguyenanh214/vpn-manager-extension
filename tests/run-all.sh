@@ -5,7 +5,7 @@ set -uo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$TESTS_DIR")"
-SUITES="${*:-platform ovpn-store popup ovpn routing forwards lifecycle host-registry prune-ovpn traffic}"
+SUITES="${*:-platform ovpn-store popup ovpn import-page routing forwards lifecycle host-registry prune-ovpn traffic}"
 
 # Các bộ dựng tunnel THẬT cần một file .ovpn chạy được. Đường dẫn đó và IP lối ra là
 # của riêng từng máy nên không nằm trong repo — chúng ở .env, file này tự nạp.

@@ -1,0 +1,39 @@
+/* Trang này mở trong tab nên không bị khung 380px của popup ràng buộc.
+   Dùng chung popup.css để giữ đúng màu và kiểu nút, chỉ chỉnh lại bố cục. */
+
+body.page {
+  width: auto;
+  display: flex;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 560px;
+}
+
+.sheet h1 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.field { display: block; margin-bottom: 4px; }
+.field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.hint { margin-top: 20px; }
+.hint code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  background: var(--bg-soft);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+#result { margin-top: 14px; }
+#result ul { margin: 6px 0 0 18px; padding: 0; }

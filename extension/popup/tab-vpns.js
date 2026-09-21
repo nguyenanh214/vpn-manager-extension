@@ -142,7 +142,7 @@ export function setupVpnControls(getState) {
   const errorSlot = document.getElementById('vpn-error');
   const fieldOf = (name) => form.querySelector(`[data-field="${name}"]`);
 
-  setupOvpnImport(errorSlot, () => refresh());
+  setupOvpnImport();
 
   const nmBtn = document.getElementById('btn-import-nm');
   nmBtn.addEventListener('click', async (e) => {

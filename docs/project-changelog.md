@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.9.0 — 2026-09-21
+
+### Sửa: chọn file .ovpn làm popup tự đóng, không import được
+Người dùng bấm `Import từ file .ovpn`, chọn file xong thì popup biến mất và không có
+gì xảy ra.
+
+Nguyên nhân nằm ở Chrome chứ không ở extension: popup bị huỷ ngay khi mất focus, mà
+mở hộp thoại chọn file của hệ điều hành chính là làm nó mất focus. Trang chết trước
+khi sự kiện `change` kịp chạy.
+
+Việc chọn file chuyển sang `extension/import/import.html`, mở bằng
+`chrome.tabs.create`. Tab không chết khi mất focus. Input file chết trong popup đã gỡ
+hẳn để không còn đường cũ.
+
+**Vì sao 142 test không bắt được:** mọi bộ test mở `popup.html` như một tab thường qua
+CDP, mà tab không có hành vi tự đóng của popup. Thêm bộ `import-page` (10 test) nạp
+file bằng `DataTransfer` rồi submit form thật, phủ đúng đoạn từ chọn file tới kết quả
+— đoạn mà bộ `ovpn` bỏ qua vì nó gọi thẳng action `import-ovpn`.
+
 ## 1.9.0 — 2026-09-15
 
 ### macOS chạy thật lần đầu, và năm lỗi nó lộ ra

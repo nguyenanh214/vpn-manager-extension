@@ -38,7 +38,7 @@ Kế hoạch: [plans/260914-1343-cross-platform-va-ovpn-import/plan.md](plans/26
 
 ## Kiểm thử
 
-142 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
+152 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
 
 ```bash
 tests/run-all.sh              # tất cả
@@ -72,6 +72,9 @@ thái cấu hình ngay dòng đầu, đọc nó trước khi tin kết quả.
 `.env` đã nằm trong `.gitignore`. **Không bao giờ commit nó**, cũng không chép nội dung
 nó vào báo cáo hay commit message.
 
+- `import-page` (10 test) — trang import `.ovpn` chạy trong tab. Nạp file vào
+  `<input type="file">` bằng `DataTransfer` rồi submit form thật, nên phủ cả lớp
+  giao diện mà bộ `ovpn` bỏ qua. Không cần Docker
 - `platform` (36 test) — giả lập cả ba OS
 - `ovpn-store` (9 test) — dọn file .ovpn mồ côi, chạy trong sandbox bằng cách trỏ
   `APPDATA`/`HOME` vào thư mục tạm
@@ -137,6 +140,13 @@ commit vẫn phải tự đọc `git diff --cached`. Nếu hook chặn nhầm th
 
 ## Bài học đã trả giá — đừng lặp lại
 
+- **Popup của extension chết khi mất focus.** Mở hộp thoại chọn file của hệ điều
+  hành từ popup chính là làm nó mất focus: Chrome huỷ popup, sự kiện `change` không
+  bao giờ chạy, người dùng chọn file xong thì không có gì xảy ra. Việc nào cần hộp
+  thoại hệ thống phải nằm trong một TAB (`chrome.tabs.create`), không phải popup.
+- **Test mở `popup.html` như tab thường nên KHÔNG tái hiện được popup thật.** Tab
+  không chết khi mất focus. 142 test không bắt được lỗi trên vì lý do này. Bộ nào
+  kiểm hành vi đặc thù của popup phải ý thức giới hạn đó.
 - **Chrome cache module service worker trong profile.** Sửa code rồi tái dùng profile
   cũ sẽ chạy bản CŨ dù file trên đĩa đã mới. `tests/launch-chrome.sh` xoá profile mỗi
   lần vì lý do này. Mất rất lâu mới tìm ra.
