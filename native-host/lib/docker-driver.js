@@ -5,6 +5,7 @@ const { execFile } = require('child_process');
 const spec = require('./container-spec');
 const platform = require('./platform');
 const { createHealth } = require('./tunnel-health');
+const { checkCertWindow, explainFailure } = require('./tunnel-diagnosis');
 
 const { IMAGE, NAME_PREFIX, containerName, signatureOf, buildCreateArgs } = spec;
 
@@ -76,6 +77,10 @@ async function start(profile) {
     await stop(profile.id);
   }
 
+  // Trước khi tốn 45s chờ OpenVPN: cert hết hạn thì biết ngay từ chính file cert.
+  const certProblem = checkCertWindow(profile);
+  if (certProblem) throw new Error(certProblem.message);
+
   const { args, name, port, copies } = buildCreateArgs(profile);
   await docker(['rm', '-f', name]).catch(() => {}); // dọn container chết còn sót
 
@@ -106,14 +111,15 @@ async function start(profile) {
     if (!(await isRunning(profile.id))) {
       const why = await getLogs(profile.id, 30);
       await docker(['rm', '-f', name]).catch(() => {});
-      throw new Error(`Tunnel chết khi đang kết nối:\n${why}`);
+      throw new Error(explainFailure('Tunnel chết khi đang kết nối', why));
     }
     await sleep(POLL_INTERVAL_MS);
   }
 
   const why = await getLogs(profile.id, 30);
   await stop(profile.id).catch(() => {});
-  throw new Error(`Quá ${READY_TIMEOUT_MS / 1000}s mà tunnel chưa sẵn sàng:\n${why}`);
+  throw new Error(
+    explainFailure(`quá ${READY_TIMEOUT_MS / 1000}s mà tunnel chưa sẵn sàng`, why));
 }
 
 /**

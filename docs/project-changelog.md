@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.11.0 — 2026-09-21
+
+### Cert hết hạn: báo thẳng ngày, thay vì bắt đọc log
+
+Cert client hết hạn thì OpenVPN vẫn chạy tới hết 45s mới chịu chết. Thứ người dùng
+nhận được là *"Quá 45s mà tunnel chưa sẵn sàng"* kèm 30 dòng log — dòng
+`WARNING: Your certificate has expired!` có nằm trong đó, nhưng lẫn giữa những dòng
+tiến trình bình thường. Triệu chứng trông hệt như mạng hỏng hay server chết.
+
+`native-host/lib/tunnel-diagnosis.js` làm hai việc:
+
+**Đọc hạn cert trước khi dựng container.** `crypto.X509Certificate` có sẵn trong Node
+nên không phá quy ước zero-dependency. Hết hạn thì báo ngay ngày giờ cụ thể, mất 1ms
+thay vì 45s, và không tạo container nào. Bắt cả chiều ngược lại — cert *chưa* có hiệu
+lực, thường là đồng hồ máy sai.
+
+Trong chế độ `.ovpn`, file tự chứa có cả `<ca>` lẫn `<cert>`. Phải lấy đúng khối
+`<cert>`: CA thường sống 10 năm, lấy nhầm là chốt này im lặng không bắt được gì.
+
+**Dịch log OpenVPN sang câu người đọc hiểu** cho những lý do chỉ lộ ra lúc chạy:
+`AUTH_FAILED`, không bắt tay được TLS, thiếu `/dev/net/tun`, sai `verify-x509-name`,
+key có mật khẩu, không phân giải được tên miền. Nguyên nhân đặt lên dòng đầu, log thô
+vẫn giữ nguyên bên dưới để còn debug.
+
+Cả hai **fail-open**: không đọc được, không parse được, không mẫu nào khớp thì im lặng
+cho chạy tiếp. Chặn nhầm một cert hợp lệ tệ hơn nhiều so với bắt người dùng đợi 45s.
+
+Thêm bộ `tunnel-diagnosis` (32 test). Cert sinh tại chỗ trong thư mục tạm — `.gitignore`
+chặn `*.pem` và pre-commit hook chặn khối PEM, nên fixture không thể nằm trong repo.
+Đồng hồ tiêm được vì OpenSSL 3.0 không đặt nổi notAfter trong quá khứ.
+
+### Sửa số phiên bản trùng
+Có hai mục `1.8.0` khác nội dung từ trước, và mục 1.10.0 lúc thêm vào đã trùng `1.9.0`.
+Đánh lại thành 1.10.0 và 1.7.2.
+
 ## 1.10.0 — 2026-09-21
 
 ### Sửa: chọn file .ovpn làm popup tự đóng, không import được

@@ -5,7 +5,7 @@ set -uo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$TESTS_DIR")"
-SUITES="${*:-platform ovpn-store popup ovpn import-page routing forwards lifecycle host-registry prune-ovpn traffic}"
+SUITES="${*:-platform tunnel-diagnosis ovpn-store popup ovpn import-page routing forwards lifecycle host-registry prune-ovpn traffic}"
 
 # Các bộ dựng tunnel THẬT cần một file .ovpn chạy được. Đường dẫn đó và IP lối ra là
 # của riêng từng máy nên không nằm trong repo — chúng ở .env, file này tự nạp.
@@ -76,7 +76,7 @@ for suite in $SUITES; do
 
   # host-registry không cần trình duyệt, nó spawn native host trực tiếp
   case "$suite" in
-    host-registry|platform|ovpn-store|prune-ovpn|traffic) needs_browser=0 ;;
+    host-registry|platform|tunnel-diagnosis|ovpn-store|prune-ovpn|traffic) needs_browser=0 ;;
     *) needs_browser=1 ;;
   esac
   # Bộ nào cũng phải giết Chrome còn sót (xem đầu stop-chrome.sh), nhưng chỉ bộ dùng

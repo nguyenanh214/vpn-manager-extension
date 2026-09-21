@@ -38,7 +38,7 @@ Kế hoạch: [plans/260914-1343-cross-platform-va-ovpn-import/plan.md](plans/26
 
 ## Kiểm thử
 
-152 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
+184 test tự động, **phần lớn chỉ chạy được trên Linux** (cần bash + Chrome for Testing):
 
 ```bash
 tests/run-all.sh              # tất cả
@@ -75,6 +75,9 @@ nó vào báo cáo hay commit message.
 - `import-page` (10 test) — trang import `.ovpn` chạy trong tab. Nạp file vào
   `<input type="file">` bằng `DataTransfer` rồi submit form thật, nên phủ cả lớp
   giao diện mà bộ `ovpn` bỏ qua. Không cần Docker
+- `tunnel-diagnosis` (32 test) — vì sao tunnel không lên. Sinh cert tại chỗ trong
+  thư mục tạm và TIÊM đồng hồ để giả lập hết hạn: OpenSSL 3.0 không đặt được
+  notAfter trong quá khứ (`-not_after` chỉ có từ 3.2). Không cần Docker
 - `platform` (36 test) — giả lập cả ba OS
 - `ovpn-store` (9 test) — dọn file .ovpn mồ côi, chạy trong sandbox bằng cách trỏ
   `APPDATA`/`HOME` vào thư mục tạm
@@ -140,6 +143,11 @@ commit vẫn phải tự đọc `git diff --cached`. Nếu hook chặn nhầm th
 
 ## Bài học đã trả giá — đừng lặp lại
 
+- **Cert hết hạn trông y hệt tunnel treo.** OpenVPN vẫn chạy tới hết 45s rồi mới
+  chết, nên thứ người dùng nhận được là "quá 45s chưa sẵn sàng" kèm 30 dòng log, và
+  dòng `Your certificate has expired` nằm lẫn giữa những dòng bình thường. Mất cả
+  buổi mới nghĩ tới cert. Giờ `tunnel-diagnosis.js` đọc hạn từ chính file cert TRƯỚC
+  khi dựng container — biết trong 1ms thay vì 45s.
 - **Popup của extension chết khi mất focus.** Mở hộp thoại chọn file của hệ điều
   hành từ popup chính là làm nó mất focus: Chrome huỷ popup, sự kiện `change` không
   bao giờ chạy, người dùng chọn file xong thì không có gì xảy ra. Việc nào cần hộp
