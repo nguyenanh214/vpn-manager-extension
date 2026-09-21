@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.9.0 — 2026-09-21
+## 1.10.0 — 2026-09-21
 
 ### Sửa: chọn file .ovpn làm popup tự đóng, không import được
 Người dùng bấm `Import từ file .ovpn`, chọn file xong thì popup biến mất và không có
@@ -174,7 +174,7 @@ lúc tách installer theo OS. Ai clone về làm theo là hỏng ngay bước đ
   trên Linux.
 - Thêm mục cho người fork, chính sách đóng góp, và giấy phép.
 
-## 1.8.0 — 2026-09-15
+## 1.7.2 — 2026-09-15
 
 ### Test chạy được trên Windows, và tám lỗi của chính bộ test
 
