@@ -167,6 +167,29 @@ Ví dụ với Navicat:
 
 Forward sống theo extension: đóng Chrome là tunnel dừng và Navicat mất kết nối.
 
+## App nói được SOCKS5 (Postman, curl, Insomnia...)
+
+Với client gọi API HTTP/HTTPS, **đừng dùng Forward** — trỏ thẳng vào cổng SOCKS5 của VPN
+sạch hơn nhiều. Forward chuyển tiếp TCP tới `127.0.0.1:<cổng>`, nên gọi `https://127.0.0.1:...`
+sẽ lệch chứng chỉ TLS, SNI và `Host` header so với domain thật (phải tắt verify SSL + tự
+set `Host`). SOCKS5 thì app kết nối tới **domain thật**, cert/SNI/Host đều đúng tự nhiên.
+
+Mỗi VPN mở sẵn một cổng SOCKS5 ở `127.0.0.1`, xem trong tab **VPN** dòng `SOCKS <port>`
+(dải 1080-1179, mỗi profile một cổng). Cổng này chỉ mở khi VPN đó có **ít nhất một domain
+hoặc forward đang bật** — tunnel sống thì cổng SOCKS sống theo.
+
+Ví dụ với Postman:
+
+1. Đảm bảo VPN đang chạy (có 1 domain/forward enable), ghi lại số cổng ở tab **VPN**, vd `1080`.
+2. Postman → **Settings → Proxy** → bật **Use custom proxy configuration**:
+   - Tick cả **HTTP** và **HTTPS**
+   - Protocol: `socks5h` (chữ `h` để DNS phân giải qua proxy, tức trong VPN — khớp allow-list)
+   - Proxy server: `127.0.0.1` · Port: cổng ở bước 1
+3. Gọi API bằng **URL thật** (`https://api.example.com/...`). Endpoint sẽ thấy IP của VPN.
+
+> Proxy trong Postman là **toàn cục** — mọi request đều qua VPN. Muốn chừa host nào thì
+> thêm vào **Proxy bypass** ở cùng màn hình. `curl` thì dùng `curl --socks5-hostname 127.0.0.1:1080 ...`.
+
 ## Certificate chỉ dùng được ở một nơi
 
 Server OpenVPN thường không bật `duplicate-cn`. Nếu **máy khác cũng đang bật VPN với
